@@ -53,8 +53,8 @@ class ProBrochure(FPDF):
         self.cell(0, 4, f'Authorized Representative: Adjie Agung | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
-st.title("🚀 Ultimate Brochure Engine + Watermark & Badges")
-st.write("Dilengkapi pembuatan Watermark Otomatis dan Stempel Kepercayaan (Trust Badges).")
+st.title("🚀 Ultimate Brochure Engine + Auto Layout")
+st.write("Generasi terbaru dengan Tata Letak Cerdas Anti-Tabrakan dan Posisi QR Code Dinamis.")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -204,27 +204,40 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                 try:
                     wm_path = f"wm_{uuid.uuid4()}.png"
                     img = Image.open(logo_path).convert("RGBA")
-                    # Kurangi Opacity menjadi 10%
                     alpha = img.split()[3]
                     alpha = alpha.point(lambda p: p * 0.1)
                     img.putalpha(alpha)
                     img.save(wm_path, "PNG")
-                    # Posisikan watermark super besar di tengah kertas
                     pdf.image(wm_path, x=35, y=90, w=140)
                     os.remove(wm_path)
                 except Exception as e:
-                    pass # Lanjutkan jika proses gambar gagal
+                    pass 
+
+            # --- QR CODE DIPINDAH KE POJOK KIRI ATAS ---
+            if ref_link:
+                qr = qrcode.make(ref_link)
+                qr_path = f"qr_{uuid.uuid4()}.png"
+                qr.save(qr_path)
+                
+                # Menyeimbangkan logo di kanan, QR code di kiri
+                pdf.image(qr_path, x=15, y=8, w=24, h=24)
+                pdf.set_xy(11, 33)
+                pdf.set_font('Helvetica', 'B', 6)
+                pdf.set_text_color(*b_color)
+                pdf.cell(32, 3, "SCAN FOR DETAILS", align='C')
+                if os.path.exists(qr_path): os.remove(qr_path)
             
-            # --- GAMBAR UTAMA ---
+            # --- GAMBAR UTAMA DIGESER KE ATAS ---
             img_path = f"temp_hero_{uuid.uuid4()}.png"
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
             
-            pdf.image(img_path, x=35, y=25, w=125)
+            # Y diubah dari 25 menjadi 15, posisi X disesuaikan sedikit agar pas di tengah
+            pdf.image(img_path, x=42, y=15, w=125)
             if os.path.exists(img_path): os.remove(img_path)
             
-            # --- HEADLINE & SPECS ---
-            pdf.set_y(135) 
+            # --- HEADLINE & SPECS NAIK MENGIKUTI GAMBAR ---
+            pdf.set_y(115) # Diubah dari 135 menjadi 115
             pdf.set_font('Helvetica', 'B', 18) 
             pdf.set_text_color(20, 20, 20)
             pdf.multi_cell(0, 10, f"{brand} {model} - {headline}", align='C')
@@ -240,18 +253,16 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.cell(63, 6, f"Hydraulic System: {spec_cap.upper()}", align='C')
             pdf.cell(63, 6, f"BOBOT: {spec_weight.upper()}", align='C', ln=True)
             
-            # --- FITUR BARU: TRUST BADGES (STEMPEL KEPERCAYAAN) ---
+            # --- TRUST BADGES ---
             pdf.ln(5)
             pdf.set_font('Helvetica', 'B', 10)
             pdf.set_text_color(255, 255, 255)
-            # Menghitung posisi tengah untuk 3 kotak
             start_x = 10
             box_w = 60
             spacing = 5
             
             pdf.set_fill_color(*b_color)
             pdf.set_xy(start_x, pdf.get_y())
-            # PERBAIKAN: Menghilangkan simbol centang (✓) yang menyebabkan error font Unicode
             pdf.cell(box_w, 8, f"{badge1.upper()}", align='C', fill=True)
             pdf.cell(spacing, 8, "", align='C')
             pdf.cell(box_w, 8, f"{badge2.upper()}", align='C', fill=True)
@@ -280,21 +291,13 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                     pdf.set_text_color(50, 50, 50)
                     pdf.multi_cell(0, 5, deskripsi_bersih)
                     pdf.ln(4)
-                
-            # --- QR CODE & WA ---
-            if ref_link:
-                qr = qrcode.make(ref_link)
-                qr_path = f"qr_{uuid.uuid4()}.png"
-                qr.save(qr_path)
-                
-                pdf.image(qr_path, x=175, y=235, w=25, h=25)
-                pdf.set_xy(170, 262)
-                pdf.set_font('Helvetica', 'B', 6)
-                pdf.set_text_color(*b_color)
-                pdf.cell(35, 3, "SCAN FOR DETAILS", align='C')
-                if os.path.exists(qr_path): os.remove(qr_path)
             
-            pdf.set_xy(10, 250)
+            # --- KONTAK WA (POSISI DINAMIS ANTI-TABRAKAN) ---
+            # Mesin akan mengecek apakah posisi Y teks AI sudah terlalu ke bawah. 
+            # Jika iya, WA akan otomatis bergeser turun (min jarak 8 point) agar tidak menabrak.
+            safe_y = max(pdf.get_y() + 8, 245)
+            
+            pdf.set_xy(10, safe_y)
             pdf.set_font('Helvetica', 'B', 12)
             pdf.set_text_color(20, 20, 20)
             pdf.cell(50, 6, "HUBUNGI SALES KAMI:", ln=True)
@@ -316,7 +319,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pix = page.get_pixmap(dpi=300)
             png_bytes = pix.tobytes("png")
             
-            st.success("🎉 Brosur Mahakarya berhasil dibuat!")
+            st.success("🎉 Brosur Mahakarya berhasil dibuat dengan Layout Sempurna!")
             
             dl_col1, dl_col2 = st.columns(2)
             with dl_col1:
