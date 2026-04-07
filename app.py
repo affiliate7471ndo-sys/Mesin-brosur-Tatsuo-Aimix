@@ -5,8 +5,8 @@ import os
 import uuid
 import qrcode
 import requests
+import json
 from bs4 import BeautifulSoup
-import google.generativeai as genai
 
 st.set_page_config(page_title="AI Pro Brochure Engine", layout="wide")
 
@@ -38,7 +38,7 @@ class ProBrochure(FPDF):
 
 # --- UI DASHBOARD ---
 st.title("🤖 AI-Powered Pro Brochure Engine")
-st.write("Otomatis ubah halaman website menjadi bahasa jualan yang powerful.")
+st.write("Otomatis ubah halaman website menjadi bahasa jualan yang powerful menggunakan Direct REST API.")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -65,22 +65,17 @@ with col2:
         if not ref_link:
             st.error("Link website tidak boleh kosong.")
         else:
-            with st.spinner("AI sedang membaca website dan meracik bahasa jualan..."):
+            with st.spinner("Mengeksekusi Direct API ke Gemini..."):
                 try:
-                    # Mengambil API Key yang disembunyikan di Streamlit Secrets
-                    api_key = st.secrets["GEMINI_API_KEY"]
+                    # Ambil API Key dari Secrets
+                    api_key = st.secrets["GOOGLE_API_KEY"]
                     
                     # 1. Scrape Website
                     res = requests.get(ref_link)
                     soup = BeautifulSoup(res.text, 'html.parser')
                     scraped_text = soup.get_text(separator=' ', strip=True)[:4000]
                     
-                    # 2. Proses dengan AI
-                    genai.configure(api_key=api_key)
-                    
-                    # PERUBAHAN DI SINI: Menggunakan 'gemini-pro' yang lebih stabil
-                    ai_model = genai.GenerativeModel('gemini-pro')
-                    
+                    # 2. Proses API Direct Menggunakan Requests & JSON
                     prompt = f"""
                     Anda adalah Copywriter Alat Berat profesional.
                     Baca spesifikasi ini dan ekstrak menjadi 3-4 poin keunggulan utama.
@@ -93,13 +88,27 @@ with col2:
                     Data spesifikasi:
                     {scraped_text}
                     """
-                    response = ai_model.generate_content(prompt)
-                    st.session_state['ai_result'] = response.text
-                    st.success("Berhasil! Cek dan edit hasilnya di bawah jika perlu.")
+                    
+                    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    headers = {'Content-Type': 'application/json'}
+                    payload = {
+                        "contents": [{"parts": [{"text": prompt}]}]
+                    }
+                    
+                    response = requests.post(api_url, headers=headers, json=payload)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        hasil_ai = data['candidates'][0]['content']['parts'][0]['text']
+                        st.session_state['ai_result'] = hasil_ai
+                        st.success("Teks jualan berhasil dibuat!")
+                    else:
+                        st.error(f"Gagal memanggil API. Status Code: {response.status_code}\nPesan: {response.text}")
+                        
                 except KeyError:
-                    st.error("Konfigurasi Error: API Key belum dimasukkan ke dalam Streamlit Secrets.")
+                    st.error("Konfigurasi Error: Pastikan variabel `GOOGLE_API_KEY` sudah ditambahkan di Streamlit Secrets.")
                 except Exception as e:
-                    st.error(f"Gagal memproses data: {e}")
+                    st.error(f"Terjadi kesalahan: {e}")
 
     ai_raw_text = st.session_state.get('ai_result', "BELUM ADA DATA.\nSilakan klik tombol di atas atau ketik manual dengan format:\nJUDUL | Deskripsi...")
     final_copy = st.text_area("Hasil Copywriting (Format: JUDUL | Deskripsi)", ai_raw_text, height=150)
