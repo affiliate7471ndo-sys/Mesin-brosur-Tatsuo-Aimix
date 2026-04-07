@@ -67,14 +67,14 @@ with col1:
         default_model = "SELF LOADING MIXER"
     else:
         default_link = "https://tatsuosales-id.netlify.app/#/"
-        default_model = "EXCAVATOR / WHEEL LOADER"
+        default_model = "WHEEL CRAWLER EXCAVATOR JP80-9"
 
     logo_file = st.file_uploader("Upload Logo Brand (PNG Transparan)", type=['png', 'jpg', 'jpeg'])
     foto = st.file_uploader("Upload Foto Unit Utama", type=['png', 'jpg', 'jpeg'])
     
     st.markdown("---")
     model = st.text_input("Tipe Unit", default_model)
-    headline = st.text_input("Headline Utama", "LEBIH CERDAS, LEBIH AKURAT, LEBIH ANDAL")
+    headline = st.text_input("Headline Utama", "TANGGUH DISEGALA MEDAN")
     
     st.caption("Highlight Spesifikasi Cepat")
     c_sp1, c_sp2, c_sp3 = st.columns(3)
@@ -86,8 +86,8 @@ with col1:
     st.caption("Stempel Kepercayaan (Trust Badges)")
     b_col1, b_col2, b_col3 = st.columns(3)
     with b_col1: badge1 = st.text_input("Badge 1", "GARANSI 1 TAHUN")
-    with b_col2: badge2 = st.text_input("Badge 2", "READY STOCK")
-    with b_col3: badge3 = st.text_input("Badge 3", "TEKNISI 24/7")
+    with b_col2: badge2 = st.text_input("Badge 2", "")
+    with b_col3: badge3 = st.text_input("Badge 3", "READY STOCK")
 
 with col2:
     st.subheader("2. AI Copywriter & Database Referensi")
