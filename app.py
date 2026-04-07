@@ -7,6 +7,7 @@ import qrcode
 import requests
 import json
 from bs4 import BeautifulSoup
+import PyPDF2
 
 st.set_page_config(page_title="Ultimate Pro Brochure Engine", layout="wide")
 
@@ -20,13 +21,10 @@ class ProBrochure(FPDF):
         self.wa_number = wa_number
 
     def header(self):
-        # Garis warna di atas
         self.set_fill_color(*self.brand_color)
         self.rect(0, 0, 210, 4, 'F')
         
-        # LOGO ATAU TEKS BRAND
         if self.logo_path and os.path.exists(self.logo_path):
-            # Posisi logo di kanan atas. w=40 (lebar disesuaikan)
             self.image(self.logo_path, x=160, y=8, w=40)
         else:
             self.ln(5)
@@ -39,19 +37,17 @@ class ProBrochure(FPDF):
         self.set_draw_color(*self.brand_color)
         self.line(10, 272, 200, 272)
         
-        # Teks Footer
         self.set_text_color(50, 50, 50)
         self.set_font('Helvetica', 'B', 9)
         self.cell(0, 6, f'{self.brand_name} - SMART EQUIPMENT FOR SMART BUILDERS', align='C', ln=True)
         
-        # Link Website
         self.set_font('Helvetica', 'I', 8)
         clean_link = self.website_link.replace("https://", "").replace("http://", "").rstrip("/")
         self.cell(0, 4, f'Authorized Representative: Adjie Agung | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
-st.title("🚀 Ultimate Brochure Engine - Tatsuo & Aimix")
-st.write("Generasi terbaru dengan fitur Logo Kustom, Quick Specs, dan Integrasi WhatsApp.")
+st.title("🚀 Ultimate Brochure Engine + PDF Reader")
+st.write("Generasi terbaru dengan fitur Logo Kustom, Quick Specs, Integrasi WhatsApp, dan Analisis AI dari PDF Katalog.")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -66,7 +62,6 @@ with col1:
         default_link = "https://tatsuosales-id.netlify.app/#/"
         default_model = "EXCAVATOR / WHEEL LOADER"
 
-    # FITUR BARU: Logo Upload & WA
     logo_file = st.file_uploader("Upload Logo Brand (PNG Transparan disarankan)", type=['png', 'jpg', 'jpeg'])
     foto = st.file_uploader("Upload Foto Unit Utama", type=['png', 'jpg', 'jpeg'])
     
@@ -74,7 +69,6 @@ with col1:
     model = st.text_input("Tipe Unit", default_model)
     headline = st.text_input("Headline Utama", "LEBIH CERDAS, LEBIH AKURAT, LEBIH ANDAL")
     
-    # FITUR BARU: Quick Specs Box
     st.caption("Highlight Spesifikasi Cepat (Tampil di bawah Headline)")
     c_sp1, c_sp2, c_sp3 = st.columns(3)
     with c_sp1: spec_engine = st.text_input("Engine / Power", "Cummins 125kW")
@@ -82,25 +76,53 @@ with col1:
     with c_sp3: spec_weight = st.text_input("Bobot Unit", "7.5 Ton")
 
 with col2:
-    st.subheader("2. AI Copywriter & Kontak")
+    st.subheader("2. AI Copywriter & Referensi")
     
-    ref_link = st.text_input("Link Website (Untuk Dibaca AI & QR Code)", default_link)
+    # FITUR BARU: Sumber Referensi Ganda (Link & PDF)
+    st.info("AI dapat membaca data dari Link Website DAN/ATAU Dokumen PDF.")
+    ref_link = st.text_input("Link Website Produk (Untuk Dibaca AI & QR Code)", default_link)
+    pdf_ref = st.file_uploader("Upload Katalog Spesifikasi (PDF)", type=['pdf'])
+    
     wa_num = st.text_input("Nomor WhatsApp (Contoh: 628123456789)", "628123456789")
     
     if st.button("✨ Tarik Data & Buat Copywriting Otomatis"):
-        if not ref_link:
-            st.error("Link website tidak boleh kosong.")
+        if not ref_link and not pdf_ref:
+            st.error("Silakan masukkan Link Website atau Upload File PDF Katalog.")
         else:
-            with st.spinner("Mengeksekusi Direct API ke Gemini 2.5 Flash..."):
+            with st.spinner("AI membaca Website dan PDF, lalu mengeksekusi Direct API ke Gemini 2.5 Flash..."):
                 try:
                     api_key = st.secrets["GOOGLE_API_KEY"]
-                    res = requests.get(ref_link, timeout=10)
-                    soup = BeautifulSoup(res.text, 'html.parser')
-                    scraped_text = soup.get_text(separator=' ', strip=True)[:4000]
+                    scraped_text = ""
+                    
+                    # 1. Ekstrak Data Website
+                    if ref_link:
+                        try:
+                            res = requests.get(ref_link, timeout=10)
+                            soup = BeautifulSoup(res.text, 'html.parser')
+                            scraped_text += "DATA WEBSITE:\n" + soup.get_text(separator=' ', strip=True)[:3000] + "\n\n"
+                        except Exception as e:
+                            st.warning(f"Gagal membaca website: {e}. Melanjutkan proses...")
+
+                    # 2. Ekstrak Data PDF
+                    if pdf_ref:
+                        try:
+                            pdf_reader = PyPDF2.PdfReader(pdf_ref)
+                            scraped_text += "DATA KATALOG PDF:\n"
+                            # Membaca maksimal 10 halaman pertama agar proses tetap cepat
+                            num_pages = min(10, len(pdf_reader.pages))
+                            for i in range(num_pages):
+                                page = pdf_reader.pages[i]
+                                text = page.extract_text()
+                                if text:
+                                    scraped_text += text + "\n"
+                            scraped_text = scraped_text[:12000] # Membatasi karakter agar payload tidak over
+                        except Exception as e:
+                            st.warning(f"Gagal membaca file PDF: {e}. Melanjutkan proses...")
                     
                     prompt = f"""
                     Anda adalah Copywriter Alat Berat profesional.
-                    Baca spesifikasi ini dan ekstrak menjadi 3 poin keunggulan utama.
+                    Baca data spesifikasi gabungan (Website dan/atau PDF) di bawah ini dan ekstrak menjadi 3 poin keunggulan utama.
+                    Fokus pada fitur mesin, efisiensi operasional, kekuatan, atau garansi.
                     Gunakan bahasa Indonesia yang powerful, maskulin, dan menunjukkan efisiensi/keuntungan pembeli.
                     
                     ATURAN FORMAT WAJIB (Gunakan pemisah tanda | antara judul dan deskripsi. Jangan gunakan tanda bintang atau bold):
@@ -121,7 +143,7 @@ with col2:
                         data = response.json()
                         hasil_ai = data['candidates'][0]['content']['parts'][0]['text']
                         st.session_state['ai_result'] = hasil_ai
-                        st.success("Teks jualan berhasil dibuat!")
+                        st.success("Teks jualan berhasil dibuat dari analisis data!")
                     else:
                         error_details = response.json()
                         st.error(f"Gagal memanggil API. Pesan: {json.dumps(error_details)}")
@@ -141,7 +163,6 @@ if st.button("🌟 Generate Ultimate Brochure"):
         with st.spinner("Merancang layout PDF tingkat tinggi..."):
             b_color = (0, 82, 155) if brand == "AIMIX" else (204, 0, 0)
             
-            # Kelola File Logo
             logo_path = None
             if logo_file:
                 logo_path = f"temp_logo_{uuid.uuid4()}.png"
@@ -151,7 +172,6 @@ if st.button("🌟 Generate Ultimate Brochure"):
             pdf = ProBrochure(brand_color=b_color, brand_name=brand, website_link=ref_link, logo_path=logo_path, wa_number=wa_num)
             pdf.add_page()
             
-            # --- 1. GAMBAR UTAMA ---
             img_path = f"temp_hero_{uuid.uuid4()}.png"
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
@@ -159,27 +179,23 @@ if st.button("🌟 Generate Ultimate Brochure"):
             pdf.image(img_path, x=35, y=25, w=140)
             if os.path.exists(img_path): os.remove(img_path)
             
-            # --- 2. HEADLINE BESAR ---
             pdf.set_y(135) 
             pdf.set_font('Helvetica', 'B', 18) 
             pdf.set_text_color(20, 20, 20)
             pdf.multi_cell(0, 10, f"{brand} {model} - {headline}", align='C')
             
-            # --- 3. QUICK SPECS BOX (FITUR BARU) ---
             pdf.ln(2)
-            pdf.set_fill_color(245, 245, 245) # Warna abu-abu muda
-            pdf.rect(10, pdf.get_y(), 190, 12, 'F') # Kotak background
+            pdf.set_fill_color(245, 245, 245)
+            pdf.rect(10, pdf.get_y(), 190, 12, 'F')
             
             pdf.set_y(pdf.get_y() + 3)
             pdf.set_font('Helvetica', 'B', 9)
             pdf.set_text_color(80, 80, 80)
-            # Dibagi 3 kolom sama rata
             pdf.cell(63, 6, f"ENGINE: {spec_engine.upper()}", align='C')
             pdf.cell(63, 6, f"KAPASITAS: {spec_cap.upper()}", align='C')
             pdf.cell(63, 6, f"BOBOT: {spec_weight.upper()}", align='C', ln=True)
-            pdf.ln(8) # Jarak sebelum copywriting
+            pdf.ln(8)
             
-            # --- 4. COPYWRITING AI ---
             lines = final_copy.strip().split('\n')
             for line in lines:
                 if '|' in line:
@@ -201,13 +217,11 @@ if st.button("🌟 Generate Ultimate Brochure"):
                     pdf.multi_cell(0, 5, deskripsi_bersih)
                     pdf.ln(4)
                 
-            # --- 5. QR CODE & WHATSAPP CTA ---
             if ref_link:
                 qr = qrcode.make(ref_link)
                 qr_path = f"qr_{uuid.uuid4()}.png"
                 qr.save(qr_path)
                 
-                # Render QR
                 pdf.image(qr_path, x=175, y=235, w=25, h=25)
                 pdf.set_xy(170, 262)
                 pdf.set_font('Helvetica', 'B', 6)
@@ -215,18 +229,16 @@ if st.button("🌟 Generate Ultimate Brochure"):
                 pdf.cell(35, 3, "SCAN FOR DETAILS", align='C')
                 if os.path.exists(qr_path): os.remove(qr_path)
             
-            # Render WA CTA (Sebelah kiri QR)
             pdf.set_xy(10, 250)
             pdf.set_font('Helvetica', 'B', 12)
             pdf.set_text_color(20, 20, 20)
             pdf.cell(50, 6, "HUBUNGI SALES EXECUTIVE:", ln=True)
             
             pdf.set_font('Helvetica', 'B', 16)
-            pdf.set_text_color(*b_color) # Warna sesuai brand
+            pdf.set_text_color(*b_color)
             wa_link = f"https://wa.me/{wa_num}"
             pdf.cell(50, 8, f"WhatsApp: +{wa_num}", link=wa_link, ln=True)
 
-            # Cleanup logo temp
             if logo_path and os.path.exists(logo_path):
                 os.remove(logo_path)
 
