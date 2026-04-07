@@ -11,6 +11,12 @@ import PyPDF2
 
 st.set_page_config(page_title="Ultimate Pro Brochure Engine", layout="wide")
 
+# --- INISIALISASI FOLDER MEMORI ---
+# Membuat folder 'katalog_tersimpan' jika belum ada
+CATALOG_DIR = "katalog_tersimpan"
+if not os.path.exists(CATALOG_DIR):
+    os.makedirs(CATALOG_DIR)
+
 class ProBrochure(FPDF):
     def __init__(self, brand_color, brand_name, website_link, logo_path, wa_number):
         super().__init__()
@@ -46,8 +52,8 @@ class ProBrochure(FPDF):
         self.cell(0, 4, f'Authorized Representative: Adjie Agung | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
-st.title("🚀 Ultimate Brochure Engine + PDF Reader")
-st.write("Generasi terbaru dengan fitur Logo Kustom, Quick Specs, Integrasi WhatsApp, dan Analisis AI dari PDF Katalog.")
+st.title("🚀 Ultimate Brochure Engine + AI Memory")
+st.write("Generasi terbaru dengan fitur Memori Katalog, Logo Kustom, dan Integrasi WhatsApp.")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -62,62 +68,79 @@ with col1:
         default_link = "https://tatsuosales-id.netlify.app/#/"
         default_model = "EXCAVATOR / WHEEL LOADER"
 
-    logo_file = st.file_uploader("Upload Logo Brand (PNG Transparan disarankan)", type=['png', 'jpg', 'jpeg'])
+    logo_file = st.file_uploader("Upload Logo Brand (PNG)", type=['png', 'jpg', 'jpeg'])
     foto = st.file_uploader("Upload Foto Unit Utama", type=['png', 'jpg', 'jpeg'])
     
     st.markdown("---")
     model = st.text_input("Tipe Unit", default_model)
     headline = st.text_input("Headline Utama", "LEBIH CERDAS, LEBIH AKURAT, LEBIH ANDAL")
     
-    st.caption("Highlight Spesifikasi Cepat (Tampil di bawah Headline)")
+    st.caption("Highlight Spesifikasi Cepat")
     c_sp1, c_sp2, c_sp3 = st.columns(3)
     with c_sp1: spec_engine = st.text_input("Engine / Power", "Cummins 125kW")
     with c_sp2: spec_cap = st.text_input("Kapasitas", "3.5 Kubik")
     with c_sp3: spec_weight = st.text_input("Bobot Unit", "7.5 Ton")
 
 with col2:
-    st.subheader("2. AI Copywriter & Referensi")
+    st.subheader("2. AI Copywriter & Database Referensi")
     
-    # FITUR BARU: Sumber Referensi Ganda (Link & PDF)
-    st.info("AI dapat membaca data dari Link Website DAN/ATAU Dokumen PDF.")
-    ref_link = st.text_input("Link Website Produk (Untuk Dibaca AI & QR Code)", default_link)
-    pdf_ref = st.file_uploader("Upload Katalog Spesifikasi (PDF)", type=['pdf'])
+    ref_link = st.text_input("Link Website Produk (Opsional)", default_link)
     
+    # --- FITUR BARU: MANAJEMEN MEMORI KATALOG ---
+    st.markdown("**📂 Database Katalog (PDF)**")
+    saved_files = [f for f in os.listdir(CATALOG_DIR) if f.endswith('.pdf')]
+    pilihan_katalog = st.selectbox("Pilih File dari Memori / Upload Baru", ["-- Upload Katalog Baru --"] + saved_files)
+    
+    pdf_path_to_read = None
+    
+    if pilihan_katalog == "-- Upload Katalog Baru --":
+        pdf_ref = st.file_uploader("Upload Katalog Spesifikasi (PDF)", type=['pdf'])
+        if pdf_ref:
+            # Simpan file ke dalam memori mesin
+            save_path = os.path.join(CATALOG_DIR, pdf_ref.name)
+            with open(save_path, "wb") as f:
+                f.write(pdf_ref.getbuffer())
+            st.success(f"✅ Katalog '{pdf_ref.name}' berhasil disimpan ke dalam memori mesin!")
+            pdf_path_to_read = save_path
+    else:
+        # Gunakan file yang sudah ada di memori
+        pdf_path_to_read = os.path.join(CATALOG_DIR, pilihan_katalog)
+        st.info(f"⚡ Menggunakan katalog dari memori: **{pilihan_katalog}**")
+        
     wa_num = st.text_input("Nomor WhatsApp (Contoh: 628123456789)", "628123456789")
     
     if st.button("✨ Tarik Data & Buat Copywriting Otomatis"):
-        if not ref_link and not pdf_ref:
-            st.error("Silakan masukkan Link Website atau Upload File PDF Katalog.")
+        if not ref_link and not pdf_path_to_read:
+            st.error("Silakan masukkan Link Website atau pilih/upload Katalog PDF.")
         else:
-            with st.spinner("AI membaca Website dan PDF, lalu mengeksekusi Direct API ke Gemini 2.5 Flash..."):
+            with st.spinner("AI sedang menganalisis data dari Website dan/atau Database PDF..."):
                 try:
                     api_key = st.secrets["GOOGLE_API_KEY"]
                     scraped_text = ""
                     
-                    # 1. Ekstrak Data Website
                     if ref_link:
                         try:
                             res = requests.get(ref_link, timeout=10)
                             soup = BeautifulSoup(res.text, 'html.parser')
                             scraped_text += "DATA WEBSITE:\n" + soup.get_text(separator=' ', strip=True)[:3000] + "\n\n"
                         except Exception as e:
-                            st.warning(f"Gagal membaca website: {e}. Melanjutkan proses...")
+                            st.warning(f"Gagal membaca website: {e}")
 
-                    # 2. Ekstrak Data PDF
-                    if pdf_ref:
+                    if pdf_path_to_read:
                         try:
-                            pdf_reader = PyPDF2.PdfReader(pdf_ref)
-                            scraped_text += "DATA KATALOG PDF:\n"
-                            # Membaca maksimal 10 halaman pertama agar proses tetap cepat
-                            num_pages = min(10, len(pdf_reader.pages))
-                            for i in range(num_pages):
-                                page = pdf_reader.pages[i]
-                                text = page.extract_text()
-                                if text:
-                                    scraped_text += text + "\n"
-                            scraped_text = scraped_text[:12000] # Membatasi karakter agar payload tidak over
+                            with open(pdf_path_to_read, "rb") as file_pdf:
+                                pdf_reader = PyPDF2.PdfReader(file_pdf)
+                                scraped_text += "DATA KATALOG PDF:\n"
+                                num_pages = min(10, len(pdf_reader.pages))
+                                for i in range(num_pages):
+                                    page = pdf_reader.pages[i]
+                                    text = page.extract_text()
+                                    if text:
+                                        scraped_text += text + "\n"
                         except Exception as e:
-                            st.warning(f"Gagal membaca file PDF: {e}. Melanjutkan proses...")
+                            st.warning(f"Gagal membaca file PDF: {e}")
+                            
+                    scraped_text = scraped_text[:12000] 
                     
                     prompt = f"""
                     Anda adalah Copywriter Alat Berat profesional.
