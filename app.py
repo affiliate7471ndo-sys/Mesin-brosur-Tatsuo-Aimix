@@ -3,139 +3,126 @@ from fpdf import FPDF
 import datetime
 import os
 import uuid
+import qrcode
 
-# Konfigurasi Halaman
-st.set_page_config(page_title="Tatsuo & Aimix Brochure Engine v2.0", layout="wide")
+st.set_page_config(page_title="Tatsuo & Aimix Pro Brochure", layout="wide")
 
-class BrochurePDF(FPDF):
+class ProBrochure(FPDF):
+    def __init__(self, brand_color, brand_name):
+        super().__init__()
+        self.brand_color = brand_color
+        self.brand_name = brand_name
+
     def header(self):
-        self.set_fill_color(255, 215, 0) # Kuning Alat Berat
-        self.rect(0, 0, 210, 30, 'F')
-        self.set_font('Helvetica', 'B', 18)
-        self.set_text_color(0, 0, 0)
-        self.cell(0, 10, 'TATSUO & AIMIX OFFICIAL BROCHURE', ln=True, align='C')
-        self.set_font('Helvetica', '', 10)
-        self.cell(0, 5, 'High Performance Heavy Equipment Solutions', ln=True, align='C')
+        # Garis tipis elegan di atas
+        self.set_fill_color(*self.brand_color)
+        self.rect(0, 0, 210, 4, 'F')
+        
+        # Nama Brand (Sebagai pengganti logo)
+        self.ln(5)
+        self.set_font('Helvetica', 'B', 24)
+        self.set_text_color(*self.brand_color)
+        self.cell(0, 10, self.brand_name, ln=True, align='R')
 
     def footer(self):
-        self.set_y(-20)
+        self.set_y(-25)
+        self.set_draw_color(*self.brand_color)
+        self.line(10, 272, 200, 272) # Garis pemisah
+        
+        self.set_text_color(50, 50, 50)
+        self.set_font('Helvetica', 'B', 9)
+        self.cell(0, 8, f'{self.brand_name} - SMART EQUIPMENT FOR SMART BUILDERS', align='C', ln=True)
         self.set_font('Helvetica', 'I', 8)
-        self.set_text_color(100, 100, 100)
-        self.cell(0, 10, f'Marketing Representative: Adjie Agung | Generated: {datetime.date.today()}', align='C')
+        self.cell(0, 4, f'Authorized Representative: Adjie Agung | tatsuosales-id.netlify.app', align='C')
 
-# Interface Dashboard
-st.title("🏗️ Mesin Brosur Multi-Gambar")
-st.write("Representasi Resmi: **Adjie Agung**")
-st.markdown("---")
+# --- UI DASHBOARD ---
+st.title("✨ Pro Brochure Engine - Corporate Style")
+st.write("Layout bersih, modern, dan profesional. Fokus pada visual dan keunggulan utama.")
 
-col1, col2 = st.columns([1, 1.5])
+col1, col2 = st.columns([1, 1])
 
 with col1:
-    st.subheader("1. Detail Unit")
-    brand = st.selectbox("Pilih Merek", ["TATSUO", "AIMIX"])
-    model = st.text_input("Tipe Unit", placeholder="Contoh: JP80-9 / Self Loading Mixer")
-    headline = st.text_input("Headline Promo", placeholder="Tangguh di segala medan!")
-    specs = st.text_area("Detail Spesifikasi", placeholder="Kapasitas: 8 Ton\nEngine: Yanmar\nGaransi: 1 Tahun", height=200)
+    st.subheader("1. Identitas & Visual")
+    brand = st.selectbox("Pilih Merek", ["AIMIX", "TATSUO"])
+    model = st.text_input("Tipe Unit", "SELF LOADING MIXER")
+    headline = st.text_input("Headline Utama (Huruf Besar)", "LEBIH CERDAS, LEBIH AKURAT, LEBIH ANDAL")
+    ref_link = st.text_input("Link Produk (Untuk QR Code)", "https://tatsuosales-id.netlify.app/#/")
+    foto = st.file_uploader("Upload Foto Unit (Gunakan foto tanpa background putih agar menyatu)", type=['png', 'jpg', 'jpeg'])
 
 with col2:
-    st.subheader("2. Visual Unit (Maks 5 Gambar)")
-    # Perubahan di sini: accept_multiple_files=True
-    fotos = st.file_uploader("Upload Foto-foto Unit (Maks 5)", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
+    st.subheader("2. Poin Keunggulan (Seperti contoh gambar)")
+    st.info("Isi poin-poin fitur andalan. Kosongkan jika tidak dipakai.")
     
-    if fotos and len(fotos) > 5:
-        st.error("Waduh Pak Adjie, maksimal 5 gambar saja ya agar layout PDF-nya tetap rapi.")
-        generate_ready = False
-    elif not fotos:
-        st.warning("Silakan upload minimal 1 foto utama.")
-        generate_ready = False
+    fitur = []
+    for i in range(1, 6):
+        with st.expander(f"Fitur Utama {i}", expanded=(i<=2)):
+            judul = st.text_input(f"Judul Fitur {i}", key=f"j_{i}")
+            deskripsi = st.text_area(f"Deskripsi Fitur {i}", key=f"d_{i}")
+            if judul and deskripsi:
+                fitur.append({"judul": judul, "desc": deskripsi})
+
+if st.button("🌟 Generate Professional Brochure"):
+    if not foto:
+        st.warning("Mohon upload 1 foto utama unit.")
     else:
-        st.success(f"{len(fotos)} gambar siap diproses.")
-        generate_ready = True
-
-st.markdown("---")
-if st.button("🚀 Buat Brosur PDF Sekarang", disabled=not generate_ready):
-    with st.spinner("Sedang menyusun layout PDF dan mengolah gambar..."):
-        pdf = BrochurePDF()
-        pdf.add_page()
-        
-        # --- Judul & Headline ---
-        pdf.ln(35)
-        pdf.set_font('Helvetica', 'B', 28)
-        pdf.set_text_color(200, 0, 0) # Merah Merek
-        pdf.cell(0, 15, f"{brand} {model}", ln=True)
-        
-        pdf.set_font('Helvetica', 'I', 14)
-        pdf.set_text_color(50, 50, 50)
-        pdf.cell(0, 10, f"'{headline}'", ln=True)
-        pdf.ln(5)
-        
-        # --- Pengolahan Gambar Dinamis (Max 5) ---
-        if fotos:
-            saved_images = []
+        with st.spinner("Merancang layout profesional..."):
+            # Set warna berdasarkan brand (Aimix = Biru, Tatsuo = Merah/Kuning Gelap)
+            b_color = (0, 82, 155) if brand == "AIMIX" else (204, 0, 0)
             
-            # 1. Simpan gambar sementara dengan nama unik (UUID)
-            for i, foto_file in enumerate(fotos):
-                if i >= 5: break # Safeguard maks 5
+            pdf = ProBrochure(brand_color=b_color, brand_name=brand)
+            pdf.add_page()
+            
+            # --- 1. HERO IMAGE (Besar di tengah) ---
+            img_path = f"temp_hero_{uuid.uuid4()}.png"
+            with open(img_path, "wb") as f:
+                f.write(foto.getbuffer())
+            
+            # Posisikan gambar di tengah atas (Y=25)
+            pdf.image(img_path, x=20, y=25, w=170)
+            if os.path.exists(img_path): os.remove(img_path)
+            
+            # --- 2. HEADLINE BESAR ---
+            pdf.set_y(120) # Mulai teks di bawah gambar
+            pdf.set_font('Helvetica', 'B', 20)
+            pdf.set_text_color(20, 20, 20)
+            
+            # Gabungkan brand, model, dan headline
+            full_headline = f"{brand} {model} - {headline}"
+            pdf.multi_cell(0, 10, full_headline, align='C')
+            pdf.ln(10)
+            
+            # --- 3. POIN-POIN KEUNGGULAN (Bermodel Bullet Point Modern) ---
+            for item in fitur:
+                # Bullet (Titik Biru/Merah)
+                pdf.set_fill_color(*b_color)
+                pdf.ellipse(10, pdf.get_y() + 2, 3, 3, 'F')
                 
-                # Buat nama file unik agar tidak bentrok
-                unique_filename = f"temp_{uuid.uuid4()}_{i}.png"
-                with open(unique_filename, "wb") as f:
-                    f.write(foto_file.getbuffer())
-                saved_images.append(unique_filename)
+                # Judul Fitur (Berwarna)
+                pdf.set_xy(16, pdf.get_y())
+                pdf.set_font('Helvetica', 'B', 12)
+                pdf.set_text_color(*b_color)
+                pdf.cell(0, 6, item['judul'].upper(), ln=True)
+                
+                # Deskripsi Fitur (Hitam)
+                pdf.set_xy(16, pdf.get_y())
+                pdf.set_font('Helvetica', '', 10)
+                pdf.set_text_color(50, 50, 50)
+                pdf.multi_cell(0, 5, item['desc'])
+                pdf.ln(4) # Jarak antar fitur
+                
+            # --- 4. QR CODE (Pojok Kanan Bawah) ---
+            if ref_link:
+                qr = qrcode.make(ref_link)
+                qr_path = f"qr_{uuid.uuid4()}.png"
+                qr.save(qr_path)
+                pdf.image(qr_path, x=175, y=245, w=25, h=25)
+                pdf.set_xy(170, 270)
+                pdf.set_font('Helvetica', 'B', 6)
+                pdf.set_text_color(*b_color)
+                pdf.cell(35, 3, "SCAN FOR DETAILS", align='C')
+                if os.path.exists(qr_path): os.remove(qr_path)
 
-            # 2. Atur Layout Berdasarkan Jumlah Gambar
-            num_images = len(saved_images)
-            specs_start_y = 180 # Default posisi teks spesifikasi
-            
-            if num_images > 0:
-                # Gambar 1 (Utama - Besar)
-                try:
-                    pdf.image(saved_images[0], x=10, y=70, w=190, h=80)
-                    specs_start_y = 155 # Jika hanya 1 gambar, teks naik sedikit
-                except:
-                    pdf.set_xy(10, 70)
-                    pdf.cell(190, 80, "[Gagal memuat gambar utama]", border=1, align='C')
-
-                # Gambar 2-5 (Kecil - Susunan Grid di bawah gambar utama)
-                if num_images > 1:
-                    specs_start_y = 210 # Turunkan teks spesifikasi untuk grid
-                    
-                    gap = 5 # Jarak antar gambar
-                    thumb_w = (190 - (gap * 3)) / 4 # Hitung lebar tiap thumbnail agar pas di lebar kertas
-                    thumb_h = 40
-                    y_grid = 155 # Posisi Y mulainya grid
-                    
-                    for i, img_path in enumerate(saved_images[1:]):
-                        # Hitung posisi X dinamis
-                        x_grid = 10 + (i * (thumb_w + gap))
-                        try:
-                            pdf.image(img_path, x=x_grid, y=y_grid, w=thumb_w, h=thumb_h)
-                        except:
-                            pdf.set_xy(x_grid, y=y_grid)
-                            pdf.set_font('Helvetica', '', 8)
-                            pdf.cell(thumb_w, thumb_h, "[Error]", border=1, align='C')
-
-            # 3. Hapus Gambar Sementara setelah dimasukkan ke PDF
-            for img_path in saved_images:
-                if os.path.exists(img_path):
-                    os.remove(img_path)
-
-        # --- Spesifikasi Teknis (Posisinya dinamis mengikuti gambar) ---
-        pdf.set_y(specs_start_y)
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.set_text_color(0, 0, 0)
-        pdf.set_fill_color(240, 240, 240) # Abu-abu muda untuk header spek
-        pdf.cell(0, 10, "  Spesifikasi Teknis:", ln=True, fill=True)
-        
-        pdf.ln(3)
-        pdf.set_font('Helvetica', '', 11)
-        pdf.set_text_color(30, 30, 30)
-        # multi_cell untuk teks panjang
-        pdf.multi_cell(0, 8, specs)
-        
-        # --- Generate Output ---
-        # Gunakan nama model untuk nama file download
-        safe_model_name = model.replace("/", "-").replace(" ", "_")
-        pdf_output = pdf.output(dest='S')
-        st.success("Brosur Multi-Gambar Berhasil Dibuat!")
-        st.download_button(label="⬇️ Download Brosur PDF", data=bytes(pdf_output), file_name=f"Brosur_{brand}_{safe_model_name}.pdf")
+            # --- OUTPUT ---
+            out = pdf.output(dest='S')
+            st.success("Brosur Profesional Berhasil Dibuat!")
+            st.download_button("⬇️ Download High-Res PDF", data=bytes(out), file_name=f"{brand}_{model}_Pro.pdf")
