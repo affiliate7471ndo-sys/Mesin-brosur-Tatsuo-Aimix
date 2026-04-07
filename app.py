@@ -65,9 +65,8 @@ with col2:
         if not ref_link:
             st.error("Link website tidak boleh kosong.")
         else:
-            with st.spinner("Mengeksekusi Direct API ke Gemini..."):
+            with st.spinner("Mengeksekusi Direct API ke Gemini Pro..."):
                 try:
-                    # Ambil API Key dari Secrets
                     api_key = st.secrets["GOOGLE_API_KEY"]
                     
                     # 1. Scrape Website
@@ -89,7 +88,8 @@ with col2:
                     {scraped_text}
                     """
                     
-                    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    # PERUBAHAN KRUSIAL: Memastikan nama model adalah gemini-pro
+                    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
                     payload = {
                         "contents": [{"parts": [{"text": prompt}]}]
