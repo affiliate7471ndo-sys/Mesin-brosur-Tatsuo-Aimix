@@ -33,9 +33,9 @@ col1, col2 = st.columns([1, 1.5])
 with col1:
     st.subheader("1. Detail Unit")
     brand = st.selectbox("Pilih Merek", ["TATSUO", "AIMIX"])
-    model = st.text_input("Tipe Unit", placeholder="Contoh: TS-200 / Pumping Concrete")
-    headline = st.text_input("Headline Promo", placeholder="Tenaga Tangguh, Harga Bersaing!")
-    specs = st.text_area("Detail Spesifikasi", placeholder="Kapasitas: 3 Ton\nEngine: Cummins\nGaransi: 1 Tahun", height=200)
+    model = st.text_input("Tipe Unit", placeholder="Contoh: JP80-9 / Self Loading Mixer")
+    headline = st.text_input("Headline Promo", placeholder="Tangguh di segala medan!")
+    specs = st.text_area("Detail Spesifikasi", placeholder="Kapasitas: 8 Ton\nEngine: Yanmar\nGaransi: 1 Tahun", height=200)
 
 with col2:
     st.subheader("2. Visual Unit (Maks 5 Gambar)")
