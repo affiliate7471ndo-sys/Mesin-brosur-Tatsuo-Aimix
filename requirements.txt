@@ -5,3 +5,4 @@ qrcode
 requests
 beautifulsoup4
 PyPDF2
+pymupdf
