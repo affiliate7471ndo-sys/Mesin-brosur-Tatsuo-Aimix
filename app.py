@@ -38,7 +38,7 @@ class ProBrochure(FPDF):
 
 # --- UI DASHBOARD ---
 st.title("🤖 AI-Powered Pro Brochure Engine")
-st.write("Otomatis ubah halaman website menjadi bahasa jualan yang powerful menggunakan Direct REST API.")
+st.write("Otomatis ubah halaman website menjadi bahasa jualan yang powerful.")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -67,21 +67,17 @@ with col2:
         else:
             with st.spinner("Mengeksekusi Direct API ke Gemini 2.5 Flash..."):
                 try:
-                    # Ambil API Key dari Secrets
                     api_key = st.secrets["GOOGLE_API_KEY"]
-                    
-                    # 1. Scrape Website
                     res = requests.get(ref_link, timeout=10)
                     soup = BeautifulSoup(res.text, 'html.parser')
                     scraped_text = soup.get_text(separator=' ', strip=True)[:4000]
                     
-                    # 2. Proses API Direct Menggunakan Requests & JSON
                     prompt = f"""
                     Anda adalah Copywriter Alat Berat profesional.
                     Baca spesifikasi ini dan ekstrak menjadi 3-4 poin keunggulan utama.
                     Gunakan bahasa Indonesia yang powerful, maskulin, dan menunjukkan efisiensi/keuntungan pembeli.
                     
-                    ATURAN FORMAT WAJIB (Gunakan pemisah tanda | antara judul dan deskripsi):
+                    ATURAN FORMAT WAJIB (Gunakan pemisah tanda | antara judul dan deskripsi. Jangan gunakan tanda bintang atau bold):
                     JUDUL FITUR 1 | Deskripsi penjelasan yang menjual maksimal 2 kalimat.
                     JUDUL FITUR 2 | Deskripsi penjelasan yang menjual maksimal 2 kalimat.
                     
@@ -89,12 +85,9 @@ with col2:
                     {scraped_text}
                     """
                     
-                    # MENGGUNAKAN VERSI API TERBARU DAN MODEL GEMINI-2.5-FLASH
                     api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
-                    payload = {
-                        "contents": [{"parts": [{"text": prompt}]}]
-                    }
+                    payload = {"contents": [{"parts": [{"text": prompt}]}]}
                     
                     response = requests.post(api_url, headers=headers, json=payload)
                     
@@ -104,12 +97,9 @@ with col2:
                         st.session_state['ai_result'] = hasil_ai
                         st.success("Teks jualan berhasil dibuat!")
                     else:
-                        # Menampilkan error spesifik dari Google jika ada masalah
                         error_details = response.json()
-                        st.error(f"Gagal memanggil API. Status Code: {response.status_code}\nPesan: {json.dumps(error_details)}")
+                        st.error(f"Gagal memanggil API. Pesan: {json.dumps(error_details)}")
                         
-                except KeyError:
-                    st.error("Konfigurasi Error: Pastikan variabel `GOOGLE_API_KEY` sudah ditambahkan di Streamlit Secrets.")
                 except Exception as e:
                     st.error(f"Terjadi kesalahan teknis: {e}")
 
@@ -130,19 +120,27 @@ if st.button("🌟 Generate Professional Brochure"):
             img_path = f"temp_hero_{uuid.uuid4()}.png"
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
-            pdf.image(img_path, x=20, y=25, w=170)
+            
+            # --- PERBAIKAN 1: Ukuran & Posisi Gambar ---
+            # Mengatur lebar gambar agar tidak terlalu besar dan proporsional
+            pdf.image(img_path, x=25, y=20, w=160)
             if os.path.exists(img_path): os.remove(img_path)
             
-            pdf.set_y(120)
-            pdf.set_font('Helvetica', 'B', 20)
+            # --- PERBAIKAN 2: Posisi Headline Diturunkan ---
+            pdf.set_y(135) # Jauhkan ke bawah agar tidak menabrak foto
+            pdf.set_font('Helvetica', 'B', 18) # Ukuran font sedikit disesuaikan
             pdf.set_text_color(20, 20, 20)
             pdf.multi_cell(0, 10, f"{brand} {model} - {headline}", align='C')
-            pdf.ln(10)
+            pdf.ln(8)
             
             lines = final_copy.strip().split('\n')
             for line in lines:
                 if '|' in line:
                     judul, deskripsi = line.split('|', 1)
+                    
+                    # --- PERBAIKAN 3: Pembersihan Simbol Markdown (**) ---
+                    judul_bersih = judul.replace("**", "").replace("*", "").strip().upper()
+                    deskripsi_bersih = deskripsi.replace("**", "").replace("*", "").strip()
                     
                     pdf.set_fill_color(*b_color)
                     pdf.ellipse(10, pdf.get_y() + 2, 3, 3, 'F')
@@ -150,20 +148,22 @@ if st.button("🌟 Generate Professional Brochure"):
                     pdf.set_xy(16, pdf.get_y())
                     pdf.set_font('Helvetica', 'B', 12)
                     pdf.set_text_color(*b_color)
-                    pdf.cell(0, 6, judul.strip().upper(), ln=True)
+                    pdf.cell(0, 6, judul_bersih, ln=True)
                     
                     pdf.set_xy(16, pdf.get_y())
                     pdf.set_font('Helvetica', '', 10)
                     pdf.set_text_color(50, 50, 50)
-                    pdf.multi_cell(0, 5, deskripsi.strip())
+                    pdf.multi_cell(0, 5, deskripsi_bersih)
                     pdf.ln(4)
                 
             if ref_link:
                 qr = qrcode.make(ref_link)
                 qr_path = f"qr_{uuid.uuid4()}.png"
                 qr.save(qr_path)
-                pdf.image(qr_path, x=175, y=245, w=25, h=25)
-                pdf.set_xy(170, 270)
+                
+                # --- PERBAIKAN 4: Posisi QR Code ---
+                pdf.image(qr_path, x=175, y=235, w=25, h=25) # Dinaikkan posisinya
+                pdf.set_xy(170, 262) # Teks disesuaikan
                 pdf.set_font('Helvetica', 'B', 6)
                 pdf.set_text_color(*b_color)
                 pdf.cell(35, 3, "SCAN FOR DETAILS", align='C')
