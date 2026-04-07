@@ -4,4 +4,3 @@ Pillow
 qrcode
 requests
 beautifulsoup4
-google-generativeai
