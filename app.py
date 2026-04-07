@@ -251,11 +251,12 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             
             pdf.set_fill_color(*b_color)
             pdf.set_xy(start_x, pdf.get_y())
-            pdf.cell(box_w, 8, f"✓ {badge1.upper()}", align='C', fill=True)
+            # PERBAIKAN: Menghilangkan simbol centang (✓) yang menyebabkan error font Unicode
+            pdf.cell(box_w, 8, f"{badge1.upper()}", align='C', fill=True)
             pdf.cell(spacing, 8, "", align='C')
-            pdf.cell(box_w, 8, f"✓ {badge2.upper()}", align='C', fill=True)
+            pdf.cell(box_w, 8, f"{badge2.upper()}", align='C', fill=True)
             pdf.cell(spacing, 8, "", align='C')
-            pdf.cell(box_w, 8, f"✓ {badge3.upper()}", align='C', fill=True, ln=True)
+            pdf.cell(box_w, 8, f"{badge3.upper()}", align='C', fill=True, ln=True)
             pdf.ln(8)
             
             # --- COPYWRITING AI ---
@@ -301,7 +302,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.set_font('Helvetica', 'B', 16)
             pdf.set_text_color(*b_color)
             wa_link = f"https://wa.me/{wa_num}"
-            pdf.cell(50, 8, f"WhatsApp: +{wa_num}", link=wa_link, ln=True)
+            pdf.cell(50, 8, f"WhatsApp: {wa_num}", link=wa_link, ln=True)
 
             if logo_path and os.path.exists(logo_path):
                 os.remove(logo_path)
