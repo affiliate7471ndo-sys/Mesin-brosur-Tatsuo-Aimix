@@ -24,9 +24,9 @@ col1, col2 = st.columns(2)
 
 with col1:
     brand = st.selectbox("Pilih Merek", ["TATSUO", "AIMIX"])
-    model = st.text_input("Tipe Unit", "Contoh: TS-200")
+    model = st.text_input("Tipe Unit", "Contoh: JP80-9")
     headline = st.text_input("Headline Promo", "Tenaga Tangguh, Harga Bersaing!")
-    specs = st.text_area("Detail Spesifikasi", "Kapasitas: 3 Ton\nEngine: Cummins\nGaransi: 1 Tahun")
+    specs = st.text_area("Detail Spesifikasi", "Kapasitas: 8 Ton\nEngine: Yanmar\nGaransi: 1 Tahun")
 
 with col2:
     foto = st.file_uploader("Upload Foto Unit", type=['png', 'jpg', 'jpeg'])
