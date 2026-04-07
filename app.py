@@ -121,14 +121,15 @@ if st.button("🌟 Generate Professional Brochure"):
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
             
-            # --- PERBAIKAN 1: Ukuran & Posisi Gambar ---
-            # Mengatur lebar gambar agar tidak terlalu besar dan proporsional
-            pdf.image(img_path, x=25, y=20, w=160)
+            # --- PENYESUAIAN FINAL 1: Ukuran Gambar ---
+            # Lebar gambar diperkecil sedikit (dari 160 ke 140) dan posisinya digeser ke tengah
+            pdf.image(img_path, x=35, y=20, w=140)
             if os.path.exists(img_path): os.remove(img_path)
             
-            # --- PERBAIKAN 2: Posisi Headline Diturunkan ---
-            pdf.set_y(135) # Jauhkan ke bawah agar tidak menabrak foto
-            pdf.set_font('Helvetica', 'B', 18) # Ukuran font sedikit disesuaikan
+            # --- PENYESUAIAN FINAL 2: Titik Mulai Teks ---
+            # Didorong jauh ke bawah ke titik Y=155 agar 100% aman dari gambar alat berat yang tinggi
+            pdf.set_y(155) 
+            pdf.set_font('Helvetica', 'B', 18) 
             pdf.set_text_color(20, 20, 20)
             pdf.multi_cell(0, 10, f"{brand} {model} - {headline}", align='C')
             pdf.ln(8)
@@ -138,7 +139,6 @@ if st.button("🌟 Generate Professional Brochure"):
                 if '|' in line:
                     judul, deskripsi = line.split('|', 1)
                     
-                    # --- PERBAIKAN 3: Pembersihan Simbol Markdown (**) ---
                     judul_bersih = judul.replace("**", "").replace("*", "").strip().upper()
                     deskripsi_bersih = deskripsi.replace("**", "").replace("*", "").strip()
                     
@@ -161,9 +161,8 @@ if st.button("🌟 Generate Professional Brochure"):
                 qr_path = f"qr_{uuid.uuid4()}.png"
                 qr.save(qr_path)
                 
-                # --- PERBAIKAN 4: Posisi QR Code ---
-                pdf.image(qr_path, x=175, y=235, w=25, h=25) # Dinaikkan posisinya
-                pdf.set_xy(170, 262) # Teks disesuaikan
+                pdf.image(qr_path, x=175, y=235, w=25, h=25)
+                pdf.set_xy(170, 262)
                 pdf.set_font('Helvetica', 'B', 6)
                 pdf.set_text_color(*b_color)
                 pdf.cell(35, 3, "SCAN FOR DETAILS", align='C')
