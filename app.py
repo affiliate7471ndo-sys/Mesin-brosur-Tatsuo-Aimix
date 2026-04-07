@@ -40,12 +40,6 @@ class ProBrochure(FPDF):
 st.title("🤖 AI-Powered Pro Brochure Engine")
 st.write("Otomatis ubah halaman website menjadi bahasa jualan yang powerful.")
 
-# Input API Key di Sidebar
-with st.sidebar:
-    st.header("⚙️ Konfigurasi AI")
-    api_key = st.text_input("Masukkan Gemini API Key", type="password")
-    st.caption("Dapatkan API Key gratis di Google AI Studio.")
-
 col1, col2 = st.columns([1, 1.2])
 
 with col1:
@@ -67,19 +61,19 @@ with col1:
 with col2:
     st.subheader("2. AI Copywriting Generator")
     
-    # Tombol Ajaib AI
     if st.button("✨ Tarik Data & Buat Copywriting Otomatis"):
-        if not api_key:
-            st.error("Silakan masukkan Gemini API Key di menu samping terlebih dahulu!")
-        elif not ref_link:
+        if not ref_link:
             st.error("Link website tidak boleh kosong.")
         else:
             with st.spinner("AI sedang membaca website dan meracik bahasa jualan..."):
                 try:
+                    # Mengambil API Key yang disembunyikan di Streamlit Secrets
+                    api_key = st.secrets["GEMINI_API_KEY"]
+                    
                     # 1. Scrape Website
                     res = requests.get(ref_link)
                     soup = BeautifulSoup(res.text, 'html.parser')
-                    scraped_text = soup.get_text(separator=' ', strip=True)[:4000] # Ambil 4000 karakter pertama
+                    scraped_text = soup.get_text(separator=' ', strip=True)[:4000]
                     
                     # 2. Proses dengan AI
                     genai.configure(api_key=api_key)
@@ -99,10 +93,11 @@ with col2:
                     response = ai_model.generate_content(prompt)
                     st.session_state['ai_result'] = response.text
                     st.success("Berhasil! Cek dan edit hasilnya di bawah jika perlu.")
+                except KeyError:
+                    st.error("Konfigurasi Error: API Key belum dimasukkan ke dalam Streamlit Secrets.")
                 except Exception as e:
                     st.error(f"Gagal memproses data: {e}")
 
-    # Text area untuk menampung atau mengedit hasil AI
     ai_raw_text = st.session_state.get('ai_result', "BELUM ADA DATA.\nSilakan klik tombol di atas atau ketik manual dengan format:\nJUDUL | Deskripsi...")
     final_copy = st.text_area("Hasil Copywriting (Format: JUDUL | Deskripsi)", ai_raw_text, height=150)
 
@@ -117,21 +112,18 @@ if st.button("🌟 Generate Professional Brochure"):
             pdf = ProBrochure(brand_color=b_color, brand_name=brand, website_link=ref_link)
             pdf.add_page()
             
-            # 1. HERO IMAGE
             img_path = f"temp_hero_{uuid.uuid4()}.png"
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
             pdf.image(img_path, x=20, y=25, w=170)
             if os.path.exists(img_path): os.remove(img_path)
             
-            # 2. HEADLINE
             pdf.set_y(120)
             pdf.set_font('Helvetica', 'B', 20)
             pdf.set_text_color(20, 20, 20)
             pdf.multi_cell(0, 10, f"{brand} {model} - {headline}", align='C')
             pdf.ln(10)
             
-            # 3. PARSING HASIL AI KE LAYOUT POIN
             lines = final_copy.strip().split('\n')
             for line in lines:
                 if '|' in line:
@@ -151,7 +143,6 @@ if st.button("🌟 Generate Professional Brochure"):
                     pdf.multi_cell(0, 5, deskripsi.strip())
                     pdf.ln(4)
                 
-            # 4. QR CODE
             if ref_link:
                 qr = qrcode.make(ref_link)
                 qr_path = f"qr_{uuid.uuid4()}.png"
