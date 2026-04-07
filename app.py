@@ -78,9 +78,9 @@ with col1:
     
     st.caption("Highlight Spesifikasi Cepat")
     c_sp1, c_sp2, c_sp3 = st.columns(3)
-    with c_sp1: spec_engine = st.text_input("Engine / Power", "Cummins 125kW")
-    with c_sp2: spec_cap = st.text_input("Kapasitas", "3.5 Kubik")
-    with c_sp3: spec_weight = st.text_input("Bobot Unit", "7.5 Ton")
+    with c_sp1: spec_engine = st.text_input("Engine / Power", "Yanmar 4TNV98-ZCVLGC")
+    with c_sp2: spec_cap = st.text_input("Hydraulic System", "Rexroth")
+    with c_sp3: spec_weight = st.text_input("Bobot Unit", "9600kg")
 
     # FITUR BARU: Trust Badges
     st.caption("Stempel Kepercayaan (Trust Badges)")
@@ -112,7 +112,7 @@ with col2:
         pdf_path_to_read = os.path.join(CATALOG_DIR, pilihan_katalog)
         st.info(f"⚡ Menggunakan katalog dari memori: **{pilihan_katalog}**")
         
-    wa_num = st.text_input("Nomor WhatsApp (Contoh: 628123456789)", "628123456789")
+    wa_num = st.text_input("Nomor WhatsApp (Contoh: 628123456789)", "+6281230857759")
     
     if st.button("✨ Tarik Data & Buat Copywriting Otomatis"):
         if not ref_link and not pdf_path_to_read:
@@ -149,7 +149,7 @@ with col2:
                     
                     prompt = f"""
                     Anda adalah Copywriter Alat Berat profesional.
-                    Baca data spesifikasi gabungan di bawah ini dan ekstrak menjadi 3 poin keunggulan utama.
+                    Baca data spesifikasi gabungan di bawah ini dan ekstrak menjadi 4 poin keunggulan utama.
                     Fokus pada fitur mesin, efisiensi operasional, kekuatan, atau garansi.
                     Gunakan bahasa Indonesia yang powerful, maskulin, dan menunjukkan efisiensi pembeli.
                     
@@ -220,7 +220,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
             
-            pdf.image(img_path, x=35, y=25, w=140)
+            pdf.image(img_path, x=35, y=25, w=125)
             if os.path.exists(img_path): os.remove(img_path)
             
             # --- HEADLINE & SPECS ---
@@ -237,7 +237,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.set_font('Helvetica', 'B', 9)
             pdf.set_text_color(80, 80, 80)
             pdf.cell(63, 6, f"ENGINE: {spec_engine.upper()}", align='C')
-            pdf.cell(63, 6, f"KAPASITAS: {spec_cap.upper()}", align='C')
+            pdf.cell(63, 6, f"Hydraulic System: {spec_cap.upper()}", align='C')
             pdf.cell(63, 6, f"BOBOT: {spec_weight.upper()}", align='C', ln=True)
             
             # --- FITUR BARU: TRUST BADGES (STEMPEL KEPERCAYAAN) ---
@@ -296,7 +296,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.set_xy(10, 250)
             pdf.set_font('Helvetica', 'B', 12)
             pdf.set_text_color(20, 20, 20)
-            pdf.cell(50, 6, "HUBUNGI SALES EXECUTIVE:", ln=True)
+            pdf.cell(50, 6, "HUBUNGI SALES KAMI:", ln=True)
             
             pdf.set_font('Helvetica', 'B', 16)
             pdf.set_text_color(*b_color)
