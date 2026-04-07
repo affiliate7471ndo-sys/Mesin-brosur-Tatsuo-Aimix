@@ -65,12 +65,13 @@ with col2:
         if not ref_link:
             st.error("Link website tidak boleh kosong.")
         else:
-            with st.spinner("Mengeksekusi Direct API ke Gemini Pro..."):
+            with st.spinner("Mengeksekusi Direct API ke Gemini 2.5 Flash..."):
                 try:
+                    # Ambil API Key dari Secrets
                     api_key = st.secrets["GOOGLE_API_KEY"]
                     
                     # 1. Scrape Website
-                    res = requests.get(ref_link)
+                    res = requests.get(ref_link, timeout=10)
                     soup = BeautifulSoup(res.text, 'html.parser')
                     scraped_text = soup.get_text(separator=' ', strip=True)[:4000]
                     
@@ -88,8 +89,8 @@ with col2:
                     {scraped_text}
                     """
                     
-                    # PERUBAHAN KRUSIAL: Memastikan nama model adalah gemini-pro
-                    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+                    # MENGGUNAKAN VERSI API TERBARU DAN MODEL GEMINI-2.5-FLASH
+                    api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
                     payload = {
                         "contents": [{"parts": [{"text": prompt}]}]
@@ -103,12 +104,14 @@ with col2:
                         st.session_state['ai_result'] = hasil_ai
                         st.success("Teks jualan berhasil dibuat!")
                     else:
-                        st.error(f"Gagal memanggil API. Status Code: {response.status_code}\nPesan: {response.text}")
+                        # Menampilkan error spesifik dari Google jika ada masalah
+                        error_details = response.json()
+                        st.error(f"Gagal memanggil API. Status Code: {response.status_code}\nPesan: {json.dumps(error_details)}")
                         
                 except KeyError:
                     st.error("Konfigurasi Error: Pastikan variabel `GOOGLE_API_KEY` sudah ditambahkan di Streamlit Secrets.")
                 except Exception as e:
-                    st.error(f"Terjadi kesalahan: {e}")
+                    st.error(f"Terjadi kesalahan teknis: {e}")
 
     ai_raw_text = st.session_state.get('ai_result', "BELUM ADA DATA.\nSilakan klik tombol di atas atau ketik manual dengan format:\nJUDUL | Deskripsi...")
     final_copy = st.text_area("Hasil Copywriting (Format: JUDUL | Deskripsi)", ai_raw_text, height=150)
