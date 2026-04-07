@@ -4,3 +4,4 @@ Pillow
 qrcode
 requests
 beautifulsoup4
+PyPDF2
