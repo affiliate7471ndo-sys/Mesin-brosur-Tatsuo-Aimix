@@ -77,7 +77,10 @@ with col2:
                     
                     # 2. Proses dengan AI
                     genai.configure(api_key=api_key)
-                    ai_model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    # PERUBAHAN DI SINI: Menggunakan 'gemini-pro' yang lebih stabil
+                    ai_model = genai.GenerativeModel('gemini-pro')
+                    
                     prompt = f"""
                     Anda adalah Copywriter Alat Berat profesional.
                     Baca spesifikasi ini dan ekstrak menjadi 3-4 poin keunggulan utama.
