@@ -8,11 +8,12 @@ import requests
 import json
 from bs4 import BeautifulSoup
 import PyPDF2
+import fitz
+from PIL import Image
 
 st.set_page_config(page_title="Ultimate Pro Brochure Engine", layout="wide")
 
 # --- INISIALISASI FOLDER MEMORI ---
-# Membuat folder 'katalog_tersimpan' jika belum ada
 CATALOG_DIR = "katalog_tersimpan"
 if not os.path.exists(CATALOG_DIR):
     os.makedirs(CATALOG_DIR)
@@ -52,8 +53,8 @@ class ProBrochure(FPDF):
         self.cell(0, 4, f'Authorized Representative: Adjie Agung | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
-st.title("🚀 Ultimate Brochure Engine + AI Memory")
-st.write("Generasi terbaru dengan fitur Memori Katalog, Logo Kustom, dan Integrasi WhatsApp.")
+st.title("🚀 Ultimate Brochure Engine + Watermark & Badges")
+st.write("Dilengkapi pembuatan Watermark Otomatis dan Stempel Kepercayaan (Trust Badges).")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -68,7 +69,7 @@ with col1:
         default_link = "https://tatsuosales-id.netlify.app/#/"
         default_model = "EXCAVATOR / WHEEL LOADER"
 
-    logo_file = st.file_uploader("Upload Logo Brand (PNG)", type=['png', 'jpg', 'jpeg'])
+    logo_file = st.file_uploader("Upload Logo Brand (PNG Transparan)", type=['png', 'jpg', 'jpeg'])
     foto = st.file_uploader("Upload Foto Unit Utama", type=['png', 'jpg', 'jpeg'])
     
     st.markdown("---")
@@ -81,12 +82,18 @@ with col1:
     with c_sp2: spec_cap = st.text_input("Kapasitas", "3.5 Kubik")
     with c_sp3: spec_weight = st.text_input("Bobot Unit", "7.5 Ton")
 
+    # FITUR BARU: Trust Badges
+    st.caption("Stempel Kepercayaan (Trust Badges)")
+    b_col1, b_col2, b_col3 = st.columns(3)
+    with b_col1: badge1 = st.text_input("Badge 1", "GARANSI 1 TAHUN")
+    with b_col2: badge2 = st.text_input("Badge 2", "READY STOCK")
+    with b_col3: badge3 = st.text_input("Badge 3", "TEKNISI 24/7")
+
 with col2:
     st.subheader("2. AI Copywriter & Database Referensi")
     
     ref_link = st.text_input("Link Website Produk (Opsional)", default_link)
     
-    # --- FITUR BARU: MANAJEMEN MEMORI KATALOG ---
     st.markdown("**📂 Database Katalog (PDF)**")
     saved_files = [f for f in os.listdir(CATALOG_DIR) if f.endswith('.pdf')]
     pilihan_katalog = st.selectbox("Pilih File dari Memori / Upload Baru", ["-- Upload Katalog Baru --"] + saved_files)
@@ -96,14 +103,12 @@ with col2:
     if pilihan_katalog == "-- Upload Katalog Baru --":
         pdf_ref = st.file_uploader("Upload Katalog Spesifikasi (PDF)", type=['pdf'])
         if pdf_ref:
-            # Simpan file ke dalam memori mesin
             save_path = os.path.join(CATALOG_DIR, pdf_ref.name)
             with open(save_path, "wb") as f:
                 f.write(pdf_ref.getbuffer())
-            st.success(f"✅ Katalog '{pdf_ref.name}' berhasil disimpan ke dalam memori mesin!")
+            st.success(f"✅ Katalog '{pdf_ref.name}' tersimpan ke memori!")
             pdf_path_to_read = save_path
     else:
-        # Gunakan file yang sudah ada di memori
         pdf_path_to_read = os.path.join(CATALOG_DIR, pilihan_katalog)
         st.info(f"⚡ Menggunakan katalog dari memori: **{pilihan_katalog}**")
         
@@ -113,7 +118,7 @@ with col2:
         if not ref_link and not pdf_path_to_read:
             st.error("Silakan masukkan Link Website atau pilih/upload Katalog PDF.")
         else:
-            with st.spinner("AI sedang menganalisis data dari Website dan/atau Database PDF..."):
+            with st.spinner("AI sedang menganalisis data..."):
                 try:
                     api_key = st.secrets["GOOGLE_API_KEY"]
                     scraped_text = ""
@@ -123,8 +128,8 @@ with col2:
                             res = requests.get(ref_link, timeout=10)
                             soup = BeautifulSoup(res.text, 'html.parser')
                             scraped_text += "DATA WEBSITE:\n" + soup.get_text(separator=' ', strip=True)[:3000] + "\n\n"
-                        except Exception as e:
-                            st.warning(f"Gagal membaca website: {e}")
+                        except:
+                            pass
 
                     if pdf_path_to_read:
                         try:
@@ -137,18 +142,18 @@ with col2:
                                     text = page.extract_text()
                                     if text:
                                         scraped_text += text + "\n"
-                        except Exception as e:
-                            st.warning(f"Gagal membaca file PDF: {e}")
+                        except:
+                            pass
                             
                     scraped_text = scraped_text[:12000] 
                     
                     prompt = f"""
                     Anda adalah Copywriter Alat Berat profesional.
-                    Baca data spesifikasi gabungan (Website dan/atau PDF) di bawah ini dan ekstrak menjadi 3 poin keunggulan utama.
+                    Baca data spesifikasi gabungan di bawah ini dan ekstrak menjadi 3 poin keunggulan utama.
                     Fokus pada fitur mesin, efisiensi operasional, kekuatan, atau garansi.
-                    Gunakan bahasa Indonesia yang powerful, maskulin, dan menunjukkan efisiensi/keuntungan pembeli.
+                    Gunakan bahasa Indonesia yang powerful, maskulin, dan menunjukkan efisiensi pembeli.
                     
-                    ATURAN FORMAT WAJIB (Gunakan pemisah tanda | antara judul dan deskripsi. Jangan gunakan tanda bintang atau bold):
+                    ATURAN FORMAT WAJIB (Gunakan pemisah tanda | antara judul dan deskripsi. Jangan gunakan tanda bintang):
                     JUDUL FITUR 1 | Deskripsi penjelasan yang menjual maksimal 2 kalimat.
                     JUDUL FITUR 2 | Deskripsi penjelasan yang menjual maksimal 2 kalimat.
                     
@@ -166,10 +171,9 @@ with col2:
                         data = response.json()
                         hasil_ai = data['candidates'][0]['content']['parts'][0]['text']
                         st.session_state['ai_result'] = hasil_ai
-                        st.success("Teks jualan berhasil dibuat dari analisis data!")
+                        st.success("Teks jualan berhasil dibuat!")
                     else:
-                        error_details = response.json()
-                        st.error(f"Gagal memanggil API. Pesan: {json.dumps(error_details)}")
+                        st.error("Gagal memanggil API.")
                         
                 except Exception as e:
                     st.error(f"Terjadi kesalahan teknis: {e}")
@@ -179,11 +183,11 @@ with col2:
 
 st.markdown("---")
 
-if st.button("🌟 Generate Ultimate Brochure"):
+if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
     if not foto:
         st.warning("Mohon upload 1 foto utama unit.")
     else:
-        with st.spinner("Merancang layout PDF tingkat tinggi..."):
+        with st.spinner("Merancang layout eksklusif, merender Watermark & Badges..."):
             b_color = (0, 82, 155) if brand == "AIMIX" else (204, 0, 0)
             
             logo_path = None
@@ -195,6 +199,23 @@ if st.button("🌟 Generate Ultimate Brochure"):
             pdf = ProBrochure(brand_color=b_color, brand_name=brand, website_link=ref_link, logo_path=logo_path, wa_number=wa_num)
             pdf.add_page()
             
+            # --- PEMBUATAN WATERMARK TRANSPARAN ---
+            if logo_path and os.path.exists(logo_path):
+                try:
+                    wm_path = f"wm_{uuid.uuid4()}.png"
+                    img = Image.open(logo_path).convert("RGBA")
+                    # Kurangi Opacity menjadi 10%
+                    alpha = img.split()[3]
+                    alpha = alpha.point(lambda p: p * 0.1)
+                    img.putalpha(alpha)
+                    img.save(wm_path, "PNG")
+                    # Posisikan watermark super besar di tengah kertas
+                    pdf.image(wm_path, x=35, y=90, w=140)
+                    os.remove(wm_path)
+                except Exception as e:
+                    pass # Lanjutkan jika proses gambar gagal
+            
+            # --- GAMBAR UTAMA ---
             img_path = f"temp_hero_{uuid.uuid4()}.png"
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
@@ -202,6 +223,7 @@ if st.button("🌟 Generate Ultimate Brochure"):
             pdf.image(img_path, x=35, y=25, w=140)
             if os.path.exists(img_path): os.remove(img_path)
             
+            # --- HEADLINE & SPECS ---
             pdf.set_y(135) 
             pdf.set_font('Helvetica', 'B', 18) 
             pdf.set_text_color(20, 20, 20)
@@ -217,8 +239,26 @@ if st.button("🌟 Generate Ultimate Brochure"):
             pdf.cell(63, 6, f"ENGINE: {spec_engine.upper()}", align='C')
             pdf.cell(63, 6, f"KAPASITAS: {spec_cap.upper()}", align='C')
             pdf.cell(63, 6, f"BOBOT: {spec_weight.upper()}", align='C', ln=True)
+            
+            # --- FITUR BARU: TRUST BADGES (STEMPEL KEPERCAYAAN) ---
+            pdf.ln(5)
+            pdf.set_font('Helvetica', 'B', 10)
+            pdf.set_text_color(255, 255, 255)
+            # Menghitung posisi tengah untuk 3 kotak
+            start_x = 10
+            box_w = 60
+            spacing = 5
+            
+            pdf.set_fill_color(*b_color)
+            pdf.set_xy(start_x, pdf.get_y())
+            pdf.cell(box_w, 8, f"✓ {badge1.upper()}", align='C', fill=True)
+            pdf.cell(spacing, 8, "", align='C')
+            pdf.cell(box_w, 8, f"✓ {badge2.upper()}", align='C', fill=True)
+            pdf.cell(spacing, 8, "", align='C')
+            pdf.cell(box_w, 8, f"✓ {badge3.upper()}", align='C', fill=True, ln=True)
             pdf.ln(8)
             
+            # --- COPYWRITING AI ---
             lines = final_copy.strip().split('\n')
             for line in lines:
                 if '|' in line:
@@ -240,6 +280,7 @@ if st.button("🌟 Generate Ultimate Brochure"):
                     pdf.multi_cell(0, 5, deskripsi_bersih)
                     pdf.ln(4)
                 
+            # --- QR CODE & WA ---
             if ref_link:
                 qr = qrcode.make(ref_link)
                 qr_path = f"qr_{uuid.uuid4()}.png"
@@ -265,6 +306,19 @@ if st.button("🌟 Generate Ultimate Brochure"):
             if logo_path and os.path.exists(logo_path):
                 os.remove(logo_path)
 
+            # --- EKSEKUSI MULTI-FORMAT ---
             out = pdf.output(dest='S')
-            st.success("Brosur Ultimate Berhasil Dibuat!")
-            st.download_button("⬇️ Download High-Res PDF", data=bytes(out), file_name=f"{brand}_Ultimate_Brochure.pdf")
+            pdf_bytes = bytes(out)
+            
+            doc = fitz.open("pdf", pdf_bytes)
+            page = doc.load_page(0)
+            pix = page.get_pixmap(dpi=300)
+            png_bytes = pix.tobytes("png")
+            
+            st.success("🎉 Brosur Mahakarya berhasil dibuat!")
+            
+            dl_col1, dl_col2 = st.columns(2)
+            with dl_col1:
+                st.download_button("⬇️ Download High-Res PDF", data=pdf_bytes, file_name=f"{brand}_Brosur_{model}.pdf", mime="application/pdf")
+            with dl_col2:
+                st.download_button("🖼️ Download Gambar (PNG)", data=png_bytes, file_name=f"{brand}_Brosur_{model}.png", mime="image/png")
