@@ -20,16 +20,33 @@ CATALOG_DIR = "katalog_tersimpan"
 if not os.path.exists(CATALOG_DIR):
     os.makedirs(CATALOG_DIR)
 
-# --- INISIALISASI SESSION STATE UNTUK KOTAK MERAH (AUTO-FILL) ---
-if 'tipe_unit' not in st.session_state: st.session_state.tipe_unit = "EXCAVATOR / WHEEL LOADER"
-if 'headline' not in st.session_state: st.session_state.headline = "LEBIH CERDAS, LEBIH AKURAT, LEBIH ANDAL"
-if 'engine' not in st.session_state: st.session_state.engine = "Yanmar 4TNV98-ZCVLGC"
-if 'hydraulic' not in st.session_state: st.session_state.hydraulic = "Rexroth"
-if 'bobot' not in st.session_state: st.session_state.bobot = "9600kg"
-if 'badge1' not in st.session_state: st.session_state.badge1 = "GARANSI 1 TAHUN"
-if 'badge2' not in st.session_state: st.session_state.badge2 = "READY STOCK"
-if 'badge3' not in st.session_state: st.session_state.badge3 = "TEKNISI 24/7"
-if 'copywriting' not in st.session_state: st.session_state.copywriting = "BELUM ADA DATA.\nSilakan klik tombol di atas atau ketik manual dengan format:\nJUDUL | Deskripsi..."
+# --- 1. SISTEM BAYANGAN (SHADOW SYNC) ANTI-RESET ---
+if 'update_from_ai' not in st.session_state:
+    st.session_state.update_from_ai = False
+
+# Jika AI baru saja selesai, pindahkan data dari "bayangan" ke kotak asli
+if st.session_state.update_from_ai:
+    st.session_state.form_tipe_unit = st.session_state.ai_tipe_unit
+    st.session_state.form_headline = st.session_state.ai_headline
+    st.session_state.form_engine = st.session_state.ai_engine
+    st.session_state.form_hydraulic = st.session_state.ai_hydraulic
+    st.session_state.form_bobot = st.session_state.ai_bobot
+    st.session_state.form_badge1 = st.session_state.ai_badge1
+    st.session_state.form_badge2 = st.session_state.ai_badge2
+    st.session_state.form_badge3 = st.session_state.ai_badge3
+    st.session_state.form_copywriting = st.session_state.ai_copywriting
+    st.session_state.update_from_ai = False # Lepaskan kendali agar user bisa edit manual
+
+# --- 2. INISIALISASI NILAI DEFAULT KOTAK MERAH ---
+if 'form_tipe_unit' not in st.session_state: st.session_state.form_tipe_unit = "EXCAVATOR / WHEEL LOADER"
+if 'form_headline' not in st.session_state: st.session_state.form_headline = "LEBIH CERDAS, LEBIH AKURAT, LEBIH ANDAL"
+if 'form_engine' not in st.session_state: st.session_state.form_engine = "Yanmar 4TNV98-ZCVLGC"
+if 'form_hydraulic' not in st.session_state: st.session_state.form_hydraulic = "Rexroth"
+if 'form_bobot' not in st.session_state: st.session_state.form_bobot = "9600kg"
+if 'form_badge1' not in st.session_state: st.session_state.form_badge1 = "GARANSI 1 TAHUN"
+if 'form_badge2' not in st.session_state: st.session_state.form_badge2 = "READY STOCK"
+if 'form_badge3' not in st.session_state: st.session_state.form_badge3 = "TEKNISI 24/7"
+if 'form_copywriting' not in st.session_state: st.session_state.form_copywriting = "BELUM ADA DATA.\nSilakan klik tombol di atas atau ketik manual dengan format:\nJUDUL | Deskripsi..."
 
 class ProBrochure(FPDF):
     def __init__(self, brand_color, brand_name, website_link, logo_path, wa_number):
@@ -67,7 +84,7 @@ class ProBrochure(FPDF):
 
 # --- UI DASHBOARD ---
 st.title("🚀 Ultimate Brochure Engine + Full Auto")
-st.write("Generasi terbaru: AI akan otomatis mengisi Spesifikasi dan Copywriting ke dalam formulir.")
+st.write("Cukup Tarik Data AI, Kotak Merah akan terisi. Bapak bebas mengedit manual jika ada yang kurang pas!")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -84,21 +101,21 @@ with col1:
     foto = st.file_uploader("Upload Foto Unit Utama", type=['png', 'jpg', 'jpeg'])
     
     st.markdown("---")
-    # PERBAIKAN: Menggunakan value= alih-alih key= agar AI bisa mengisinya tanpa error Streamlit
-    model = st.text_input("Tipe Unit", value=st.session_state.tipe_unit)
-    headline = st.text_input("Headline Utama", value=st.session_state.headline)
+    # KOTAK DIHUBUNGKAN DENGAN KEY, SEHINGGA BISA DIEDIT MANUAL TANPA REFRESH MENGGANGGU
+    model = st.text_input("Tipe Unit", key="form_tipe_unit")
+    headline = st.text_input("Headline Utama", key="form_headline")
     
     st.caption("Highlight Spesifikasi Cepat")
     c_sp1, c_sp2, c_sp3 = st.columns(3)
-    with c_sp1: spec_engine = st.text_input("Engine / Power", value=st.session_state.engine)
-    with c_sp2: spec_cap = st.text_input("Hydraulic System", value=st.session_state.hydraulic)
-    with c_sp3: spec_weight = st.text_input("Bobot Unit", value=st.session_state.bobot)
+    with c_sp1: spec_engine = st.text_input("Engine / Power", key="form_engine")
+    with c_sp2: spec_cap = st.text_input("Hydraulic System", key="form_hydraulic")
+    with c_sp3: spec_weight = st.text_input("Bobot Unit", key="form_bobot")
 
     st.caption("Stempel Kepercayaan (Trust Badges)")
     b_col1, b_col2, b_col3 = st.columns(3)
-    with b_col1: badge1 = st.text_input("Badge 1", value=st.session_state.badge1)
-    with b_col2: badge2 = st.text_input("Badge 2", value=st.session_state.badge2)
-    with b_col3: badge3 = st.text_input("Badge 3", value=st.session_state.badge3)
+    with b_col1: badge1 = st.text_input("Badge 1", key="form_badge1")
+    with b_col2: badge2 = st.text_input("Badge 2", key="form_badge2")
+    with b_col3: badge3 = st.text_input("Badge 3", key="form_badge3")
 
 with col2:
     st.subheader("2. AI Data Extractor & Copywriter")
@@ -139,8 +156,7 @@ with col2:
                             res = requests.get(ref_link, timeout=10)
                             soup = BeautifulSoup(res.text, 'html.parser')
                             scraped_text += "DATA WEBSITE:\n" + soup.get_text(separator=' ', strip=True)[:3000] + "\n\n"
-                        except:
-                            pass
+                        except: pass
 
                     if pdf_path_to_read:
                         try:
@@ -151,10 +167,8 @@ with col2:
                                 for i in range(num_pages):
                                     page = pdf_reader.pages[i]
                                     text = page.extract_text()
-                                    if text:
-                                        scraped_text += text + "\n"
-                        except:
-                            pass
+                                    if text: scraped_text += text + "\n"
+                        except: pass
                             
                     scraped_text = scraped_text[:12000] 
                     
@@ -184,7 +198,6 @@ with col2:
                     payload = {"contents": [{"parts": [{"text": prompt}]}]}
                     
                     max_retries = 3
-                    berhasil = False
                     
                     for attempt in range(max_retries):
                         try:
@@ -199,23 +212,26 @@ with col2:
                                     json_str = match.group(0)
                                     extracted_data = json.loads(json_str)
                                     
-                                    st.session_state.tipe_unit = extracted_data.get('tipe_unit', st.session_state.tipe_unit).upper()
-                                    st.session_state.headline = extracted_data.get('headline', st.session_state.headline).upper()
-                                    st.session_state.engine = extracted_data.get('engine', st.session_state.engine)
-                                    st.session_state.hydraulic = extracted_data.get('hydraulic', st.session_state.hydraulic)
-                                    st.session_state.bobot = extracted_data.get('bobot', st.session_state.bobot)
-                                    st.session_state.badge1 = extracted_data.get('badge1', st.session_state.badge1).upper()
-                                    st.session_state.badge2 = extracted_data.get('badge2', st.session_state.badge2).upper()
-                                    st.session_state.badge3 = extracted_data.get('badge3', st.session_state.badge3).upper()
-                                    st.session_state.copywriting = extracted_data.get('copywriting', st.session_state.copywriting)
+                                    # SIMPAN KE SISTEM BAYANGAN
+                                    st.session_state.ai_tipe_unit = extracted_data.get('tipe_unit', st.session_state.form_tipe_unit).upper()
+                                    st.session_state.ai_headline = extracted_data.get('headline', st.session_state.form_headline).upper()
+                                    st.session_state.ai_engine = extracted_data.get('engine', st.session_state.form_engine)
+                                    st.session_state.ai_hydraulic = extracted_data.get('hydraulic', st.session_state.form_hydraulic)
+                                    st.session_state.ai_bobot = extracted_data.get('bobot', st.session_state.form_bobot)
+                                    st.session_state.ai_badge1 = extracted_data.get('badge1', st.session_state.form_badge1).upper()
+                                    st.session_state.ai_badge2 = extracted_data.get('badge2', st.session_state.form_badge2).upper()
+                                    st.session_state.ai_badge3 = extracted_data.get('badge3', st.session_state.form_badge3).upper()
+                                    st.session_state.ai_copywriting = extracted_data.get('copywriting', st.session_state.form_copywriting)
+                                    
+                                    # BERI SINYAL UNTUK MEMINDAHKAN DATA KE KOTAK
+                                    st.session_state.update_from_ai = True
                                     
                                     st.success("✅ Berhasil mengekstrak data! Formulir telah diisi otomatis.")
                                     time.sleep(1) 
-                                    st.rerun() 
+                                    st.rerun() # Refresh agar data bayangan masuk ke kotak
                                 else:
                                     st.error("AI gagal memformat data dengan benar. Silakan coba lagi.")
                                 
-                                berhasil = True
                                 break
                             else:
                                 if attempt < max_retries - 1:
@@ -228,16 +244,13 @@ with col2:
                                         error_msg = response.text
                                     st.error(f"Gagal memanggil API Google. Status: {response.status_code}. Detail: {error_msg}")
                         except requests.exceptions.RequestException as e:
-                            if attempt < max_retries - 1:
-                                time.sleep(3)
-                            else:
-                                st.error(f"Koneksi terputus. Detail Error: {e}")
+                            if attempt < max_retries - 1: time.sleep(3)
+                            else: st.error(f"Koneksi terputus. Detail Error: {e}")
                         
                 except Exception as e:
                     st.error(f"Terjadi kesalahan teknis internal: {e}")
 
-    # PERBAIKAN: value= digunakan di text area juga
-    final_copy = st.text_area("Hasil Copywriting (Bisa diedit manual)", value=st.session_state.copywriting, height=150)
+    final_copy = st.text_area("Hasil Copywriting (Bisa diedit manual)", key="form_copywriting", height=150)
 
 st.markdown("---")
 
@@ -257,6 +270,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf = ProBrochure(brand_color=b_color, brand_name=brand, website_link=ref_link, logo_path=logo_path, wa_number=wa_num)
             pdf.add_page()
             
+            # --- PEMBUATAN WATERMARK TRANSPARAN ---
             if logo_path and os.path.exists(logo_path):
                 try:
                     wm_path = f"wm_{uuid.uuid4()}.png"
@@ -270,6 +284,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                 except:
                     pass 
 
+            # --- QR CODE DI POJOK KIRI ATAS ---
             if ref_link:
                 qr = qrcode.make(ref_link)
                 qr_path = f"qr_{uuid.uuid4()}.png"
@@ -282,6 +297,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                 pdf.cell(30, 3, "SCAN FOR DETAILS", align='C')
                 if os.path.exists(qr_path): os.remove(qr_path)
             
+            # --- GAMBAR UTAMA DIGESER KE ATAS ---
             img_path = f"temp_hero_{uuid.uuid4()}.png"
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
@@ -289,6 +305,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.image(img_path, x=40, y=14, w=130)
             if os.path.exists(img_path): os.remove(img_path)
             
+            # --- HEADLINE & SPECS MENGGUNAKAN VARIABEL DARI KOTAK ---
             pdf.set_y(115)
             pdf.set_font('Helvetica', 'B', 18) 
             pdf.set_text_color(20, 20, 20)
@@ -305,6 +322,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.cell(63, 6, f"HYDRAULIC: {spec_cap.upper()}", align='C')
             pdf.cell(63, 6, f"BOBOT: {spec_weight.upper()}", align='C', ln=True)
             
+            # --- TRUST BADGES ---
             pdf.ln(5)
             pdf.set_font('Helvetica', 'B', 10)
             pdf.set_text_color(255, 255, 255)
@@ -327,6 +345,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             draw_badge(badge3, is_last=True)
             pdf.ln(8)
             
+            # --- COPYWRITING AI ---
             lines = final_copy.strip().split('\n')
             for line in lines:
                 if '|' in line:
@@ -348,6 +367,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                     pdf.multi_cell(0, 5, deskripsi_bersih)
                     pdf.ln(4)
             
+            # --- KONTAK WA ANTI TABRAKAN ---
             safe_y = max(pdf.get_y() + 6, 245)
             
             pdf.set_xy(10, safe_y)
@@ -364,6 +384,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             if logo_path and os.path.exists(logo_path):
                 os.remove(logo_path)
 
+            # --- EKSEKUSI MULTI-FORMAT ---
             out = pdf.output(dest='S')
             pdf_bytes = bytes(out)
             
