@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 import PyPDF2
 import fitz
 from PIL import Image
+import time  # Wajib untuk fitur Auto-Retry
 
 st.set_page_config(page_title="Ultimate Pro Brochure Engine", layout="wide")
 
@@ -53,7 +54,7 @@ class ProBrochure(FPDF):
         self.cell(0, 4, f'Authorized Representative: Adjie Agung | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
-st.title("🚀 Ultimate Brochure Engine + Auto Layout")
+st.title("🚀 Ultimate Brochure Engine + Auto Retry")
 st.write("Generasi terbaru dengan Tata Letak Cerdas Anti-Tabrakan dan Posisi QR Code Dinamis.")
 
 col1, col2 = st.columns([1, 1.2])
@@ -118,7 +119,7 @@ with col2:
         if not ref_link and not pdf_path_to_read:
             st.error("Silakan masukkan Link Website atau pilih/upload Katalog PDF.")
         else:
-            with st.spinner("AI sedang menganalisis data..."):
+            with st.spinner("AI sedang menganalisis data (Mohon tunggu, Auto-Retry aktif jika server sibuk)..."):
                 try:
                     api_key = st.secrets["GOOGLE_API_KEY"]
                     scraped_text = ""
@@ -161,22 +162,45 @@ with col2:
                     {scraped_text}
                     """
                     
+                    # Menggunakan model gemini-flash-latest sesuai pilihan Bapak
                     api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-flash-latest:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
                     payload = {"contents": [{"parts": [{"text": prompt}]}]}
                     
-                    response = requests.post(api_url, headers=headers, json=payload)
+                    # --- SISTEM AUTO-RETRY 3 KALI ---
+                    max_retries = 3
+                    berhasil = False
                     
-                    if response.status_code == 200:
-                        data = response.json()
-                        hasil_ai = data['candidates'][0]['content']['parts'][0]['text']
-                        st.session_state['ai_result'] = hasil_ai
-                        st.success("Teks jualan berhasil dibuat!")
-                    else:
-                        st.error("Gagal memanggil API.")
-                        
+                    for attempt in range(max_retries):
+                        try:
+                            # Timeout 40 detik agar stabil membaca PDF
+                            response = requests.post(api_url, headers=headers, json=payload, timeout=40)
+                            
+                            if response.status_code == 200:
+                                data = response.json()
+                                hasil_ai = data['candidates'][0]['content']['parts'][0]['text']
+                                st.session_state['ai_result'] = hasil_ai
+                                st.success("✅ Teks jualan berhasil dibuat!")
+                                berhasil = True
+                                break # Sukses, keluar dari loop
+                            else:
+                                if attempt < max_retries - 1:
+                                    time.sleep(3) # Tunggu 3 detik sebelum coba lagi
+                                else:
+                                    try:
+                                        err_data = response.json()
+                                        error_msg = err_data.get('error', {}).get('message', str(err_data))
+                                    except:
+                                        error_msg = response.text
+                                    st.error(f"Gagal memanggil API. Status: {response.status_code}. Detail: {error_msg}")
+                        except Exception as e:
+                            if attempt < max_retries - 1:
+                                time.sleep(3)
+                            else:
+                                st.error(f"Koneksi terputus/Timeout: {e}")
+
                 except Exception as e:
-                    st.error(f"Terjadi kesalahan teknis: {e}")
+                    st.error(f"Terjadi kesalahan teknis internal: {e}")
 
     ai_raw_text = st.session_state.get('ai_result', "BELUM ADA DATA.\nSilakan klik tombol di atas atau ketik manual dengan format:\nJUDUL | Deskripsi...")
     final_copy = st.text_area("Hasil Copywriting (Format: JUDUL | Deskripsi)", ai_raw_text, height=150)
@@ -219,7 +243,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                 qr_path = f"qr_{uuid.uuid4()}.png"
                 qr.save(qr_path)
                 
-                # Menyeimbangkan logo di kanan, QR code di kiri
                 pdf.image(qr_path, x=15, y=8, w=24, h=24)
                 pdf.set_xy(11, 33)
                 pdf.set_font('Helvetica', 'B', 6)
@@ -232,12 +255,11 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
             
-            # Y diubah dari 25 menjadi 15, posisi X disesuaikan sedikit agar pas di tengah
             pdf.image(img_path, x=42, y=15, w=125)
             if os.path.exists(img_path): os.remove(img_path)
             
             # --- HEADLINE & SPECS NAIK MENGIKUTI GAMBAR ---
-            pdf.set_y(115) # Diubah dari 135 menjadi 115
+            pdf.set_y(115) 
             pdf.set_font('Helvetica', 'B', 18) 
             pdf.set_text_color(20, 20, 20)
             pdf.multi_cell(0, 10, f"{brand} {model} - {headline}", align='C')
@@ -261,13 +283,19 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             box_w = 60
             spacing = 5
             
+            def draw_badge(text, is_last=False):
+                if text.strip():
+                    pdf.cell(box_w, 8, f"{text.upper()}", align='C', fill=True, ln=is_last)
+                else:
+                    pdf.cell(box_w, 8, "", align='C', ln=is_last)
+
             pdf.set_fill_color(*b_color)
             pdf.set_xy(start_x, pdf.get_y())
-            pdf.cell(box_w, 8, f"{badge1.upper()}", align='C', fill=True)
+            draw_badge(badge1)
             pdf.cell(spacing, 8, "", align='C')
-            pdf.cell(box_w, 8, f"{badge2.upper()}", align='C', fill=True)
+            draw_badge(badge2)
             pdf.cell(spacing, 8, "", align='C')
-            pdf.cell(box_w, 8, f"{badge3.upper()}", align='C', fill=True, ln=True)
+            draw_badge(badge3, is_last=True)
             pdf.ln(8)
             
             # --- COPYWRITING AI ---
@@ -293,8 +321,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                     pdf.ln(4)
             
             # --- KONTAK WA (POSISI DINAMIS ANTI-TABRAKAN) ---
-            # Mesin akan mengecek apakah posisi Y teks AI sudah terlalu ke bawah. 
-            # Jika iya, WA akan otomatis bergeser turun (min jarak 8 point) agar tidak menabrak.
             safe_y = max(pdf.get_y() + 8, 245)
             
             pdf.set_xy(10, safe_y)
@@ -304,7 +330,8 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             
             pdf.set_font('Helvetica', 'B', 16)
             pdf.set_text_color(*b_color)
-            wa_link = f"https://wa.me/{wa_num}"
+            wa_clean = wa_num.replace("+", "")
+            wa_link = f"https://wa.me/{wa_clean}"
             pdf.cell(50, 8, f"WhatsApp: {wa_num}", link=wa_link, ln=True)
 
             if logo_path and os.path.exists(logo_path):
