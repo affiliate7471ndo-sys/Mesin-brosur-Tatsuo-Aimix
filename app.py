@@ -54,8 +54,8 @@ class ProBrochure(FPDF):
         self.cell(0, 4, f'Authorized Representative: Adjie Agung | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
-st.title("🚀 Ultimate Brochure Engine + Auto Fallback")
-st.write("Generasi terbaru dengan Radar Pencari Mesin Otomatis (Anti-Error 404).")
+st.title("🚀 Ultimate Brochure Engine + Final Fix")
+st.write("Generasi terbaru dengan Perbaikan Jalur API 100% Valid.")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -83,7 +83,6 @@ with col1:
     with c_sp2: spec_cap = st.text_input("Hydraulic System", "Rexroth")
     with c_sp3: spec_weight = st.text_input("Bobot Unit", "9600kg")
 
-    # FITUR BARU: Trust Badges
     st.caption("Stempel Kepercayaan (Trust Badges)")
     b_col1, b_col2, b_col3 = st.columns(3)
     with b_col1: badge1 = st.text_input("Badge 1", "GARANSI 1 TAHUN")
@@ -113,13 +112,13 @@ with col2:
         pdf_path_to_read = os.path.join(CATALOG_DIR, pilihan_katalog)
         st.info(f"⚡ Menggunakan katalog dari memori: **{pilihan_katalog}**")
         
-    wa_num = st.text_input("Nomor WhatsApp (Contoh: 628123456789)", "+6281230857759")
+    wa_num = st.text_input("Nomor WhatsApp (Contoh: +628123456789)", "+6281230857759")
     
     if st.button("✨ Tarik Data & Buat Copywriting Otomatis"):
         if not ref_link and not pdf_path_to_read:
             st.error("Silakan masukkan Link Website atau pilih/upload Katalog PDF.")
         else:
-            with st.spinner("AI sedang membaca data dan mencari server yang tersedia..."):
+            with st.spinner("AI sedang meramu data..."):
                 try:
                     api_key = st.secrets["GOOGLE_API_KEY"]
                     scraped_text = ""
@@ -128,250 +127,119 @@ with col2:
                         try:
                             res = requests.get(ref_link, timeout=10)
                             soup = BeautifulSoup(res.text, 'html.parser')
-                            scraped_text += "DATA WEBSITE:\n" + soup.get_text(separator=' ', strip=True)[:3000] + "\n\n"
-                        except:
-                            pass
+                            scraped_text += soup.get_text(separator=' ', strip=True)[:3000]
+                        except: pass
 
                     if pdf_path_to_read:
                         try:
                             with open(pdf_path_to_read, "rb") as file_pdf:
                                 pdf_reader = PyPDF2.PdfReader(file_pdf)
-                                scraped_text += "DATA KATALOG PDF:\n"
-                                num_pages = min(10, len(pdf_reader.pages))
+                                num_pages = min(5, len(pdf_reader.pages))
                                 for i in range(num_pages):
-                                    page = pdf_reader.pages[i]
-                                    text = page.extract_text()
-                                    if text:
-                                        scraped_text += text + "\n"
-                        except:
-                            pass
+                                    scraped_text += pdf_reader.pages[i].extract_text() + "\n"
+                        except: pass
                             
-                    scraped_text = scraped_text[:12000] 
+                    prompt = f"Tolong buatkan 4 poin keunggulan alat berat dari data ini: {scraped_text[:8000]}. Format wajib: JUDUL | Deskripsi singkat."
                     
-                    prompt = f"""
-                    Anda adalah Copywriter Alat Berat profesional.
-                    Baca data spesifikasi gabungan di bawah ini dan ekstrak menjadi 4 poin keunggulan utama.
-                    Fokus pada fitur mesin, efisiensi operasional, kekuatan, atau garansi.
-                    Gunakan bahasa Indonesia yang powerful, maskulin, dan menunjukkan efisiensi pembeli.
-                    
-                    ATURAN FORMAT WAJIB (Gunakan pemisah tanda | antara judul dan deskripsi. Jangan gunakan tanda bintang):
-                    JUDUL FITUR 1 | Deskripsi penjelasan yang menjual maksimal 2 kalimat.
-                    JUDUL FITUR 2 | Deskripsi penjelasan yang menjual maksimal 2 kalimat.
-                    
-                    Data spesifikasi:
-                    {scraped_text}
-                    """
-                    
-                    # --- SISTEM RADAR: MENCARI MODEL YANG DIIZINKAN OLEH API KEY ANDA ---
-                    endpoints_to_try = [
-                        ("v1beta", "gemini-1.5-flash"),
-                        ("v1", "gemini-1.5-flash"),
-                        ("v1beta", "gemini-pro"), # Model klasik yang pasti berhasil
-                        ("v1", "gemini-pro")
-                    ]
-                    
+                    # --- FIX FINAL: Nama model HARUS models/gemini-1.5-flash ---
+                    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
                     payload = {"contents": [{"parts": [{"text": prompt}]}]}
                     
-                    berhasil = False
-                    status_placeholder = st.empty()
-                    error_logs = []
-                    
-                    for version, model_name in endpoints_to_try:
-                        if berhasil:
+                    # Auto Retry
+                    for attempt in range(3):
+                        response = requests.post(api_url, headers=headers, json=payload, timeout=30)
+                        if response.status_code == 200:
+                            data = response.json()
+                            hasil_ai = data['candidates'][0]['content']['parts'][0]['text']
+                            st.session_state['ai_result'] = hasil_ai
+                            st.success("✅ Berhasil!")
                             break
-                            
-                        api_url = f"https://generativelanguage.googleapis.com/{version}/models/{model_name}:generateContent?key={api_key}"
-                        status_placeholder.info(f"🔄 Menguji mesin: {model_name} (Jalur {version})...")
-                        
-                        max_retries = 3
-                        for attempt in range(max_retries):
-                            try:
-                                response = requests.post(api_url, headers=headers, json=payload, timeout=40)
-                                
-                                if response.status_code == 200:
-                                    data = response.json()
-                                    hasil_ai = data['candidates'][0]['content']['parts'][0]['text']
-                                    st.session_state['ai_result'] = hasil_ai
-                                    status_placeholder.empty()
-                                    st.success(f"✅ Teks jualan berhasil dibuat oleh {model_name}!")
-                                    berhasil = True
-                                    break 
-                                elif response.status_code == 404:
-                                    # Jika API Key ditolak, langsung pindah ke model berikutnya!
-                                    error_logs.append(f"{model_name}: Ditolak/404")
-                                    break 
-                                elif response.status_code in [503, 429]:
-                                    if attempt < max_retries - 1:
-                                        time.sleep(3)
-                                    else:
-                                        error_logs.append(f"{model_name}: Server Penuh")
-                                else:
-                                    if attempt < max_retries - 1:
-                                        time.sleep(3)
-                                    else:
-                                        error_logs.append(f"{model_name}: Error {response.status_code}")
-                            except Exception as e:
-                                if attempt < max_retries - 1:
-                                    time.sleep(3)
-                                else:
-                                    error_logs.append(f"{model_name}: Timeout")
-
-                    if not berhasil:
-                        status_placeholder.empty()
-                        st.error("🚨 Gagal memanggil semua mesin API. Server Google sedang down atau API Key Anda bermasalah.\n" + str(error_logs))
+                        else:
+                            time.sleep(2)
+                            if attempt == 2:
+                                st.error(f"Error: {response.status_code} - {response.text}")
 
                 except Exception as e:
-                    st.error(f"Terjadi kesalahan teknis internal: {e}")
+                    st.error(f"Sistem Error: {e}")
 
-    ai_raw_text = st.session_state.get('ai_result', "BELUM ADA DATA.\nSilakan klik tombol di atas atau ketik manual dengan format:\nJUDUL | Deskripsi...")
-    final_copy = st.text_area("Hasil Copywriting (Format: JUDUL | Deskripsi)", ai_raw_text, height=150)
+    ai_raw_text = st.session_state.get('ai_result', "JUDUL | Deskripsi...")
+    final_copy = st.text_area("Hasil Copywriting", ai_raw_text, height=150)
 
 st.markdown("---")
 
-if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
+if st.button("🌟 Generate Ultimate Brochure"):
     if not foto:
-        st.warning("Mohon upload 1 foto utama unit.")
+        st.warning("Mohon upload foto.")
     else:
-        with st.spinner("Merancang layout eksklusif, merender Watermark & Badges..."):
+        with st.spinner("Merancang PDF..."):
             b_color = (0, 82, 155) if brand == "AIMIX" else (204, 0, 0)
             
             logo_path = None
             if logo_file:
                 logo_path = f"temp_logo_{uuid.uuid4()}.png"
-                with open(logo_path, "wb") as f:
-                    f.write(logo_file.getbuffer())
+                with open(logo_path, "wb") as f: f.write(logo_file.getbuffer())
             
-            pdf = ProBrochure(brand_color=b_color, brand_name=brand, website_link=ref_link, logo_path=logo_path, wa_number=wa_num)
+            pdf = ProBrochure(b_color, brand, ref_link, logo_path, wa_num)
             pdf.add_page()
             
-            # --- PEMBUATAN WATERMARK TRANSPARAN ---
-            if logo_path and os.path.exists(logo_path):
-                try:
-                    wm_path = f"wm_{uuid.uuid4()}.png"
-                    img = Image.open(logo_path).convert("RGBA")
-                    alpha = img.split()[3]
-                    alpha = alpha.point(lambda p: p * 0.1)
-                    img.putalpha(alpha)
-                    img.save(wm_path, "PNG")
-                    pdf.image(wm_path, x=35, y=90, w=140)
-                    os.remove(wm_path)
-                except Exception as e:
-                    pass 
-
-            # --- QR CODE DIPINDAH KE POJOK KIRI ATAS ---
+            # Watermark
+            if logo_path:
+                img = Image.open(logo_path).convert("RGBA")
+                alpha = img.split()[3].point(lambda p: p * 0.1)
+                img.putalpha(alpha)
+                wm_p = f"wm_{uuid.uuid4()}.png"
+                img.save(wm_p)
+                pdf.image(wm_p, x=35, y=90, w=140)
+            
+            # QR Code
             if ref_link:
-                qr = qrcode.make(ref_link)
                 qr_path = f"qr_{uuid.uuid4()}.png"
-                qr.save(qr_path)
-                
-                pdf.image(qr_path, x=15, y=8, w=24, h=24)
-                pdf.set_xy(11, 33)
-                pdf.set_font('Helvetica', 'B', 6)
-                pdf.set_text_color(*b_color)
-                pdf.cell(32, 3, "SCAN FOR DETAILS", align='C')
-                if os.path.exists(qr_path): os.remove(qr_path)
+                qrcode.make(ref_link).save(qr_path)
+                pdf.image(qr_path, x=12, y=8, w=22, h=22)
+                pdf.set_xy(8, 31); pdf.set_font('Helvetica', 'B', 6); pdf.set_text_color(*b_color)
+                pdf.cell(30, 3, "SCAN FOR DETAILS", align='C')
+
+            # Main Image
+            img_p = f"hero_{uuid.uuid4()}.png"
+            with open(img_p, "wb") as f: f.write(foto.getbuffer())
+            pdf.image(img_p, x=40, y=14, w=130)
             
-            # --- GAMBAR UTAMA DIGESER KE ATAS ---
-            img_path = f"temp_hero_{uuid.uuid4()}.png"
-            with open(img_path, "wb") as f:
-                f.write(foto.getbuffer())
-            
-            pdf.image(img_path, x=42, y=15, w=125)
-            if os.path.exists(img_path): os.remove(img_path)
-            
-            # --- HEADLINE & SPECS NAIK MENGIKUTI GAMBAR ---
-            pdf.set_y(115) 
-            pdf.set_font('Helvetica', 'B', 18) 
-            pdf.set_text_color(20, 20, 20)
+            # Content
+            pdf.set_y(115); pdf.set_font('Helvetica', 'B', 18); pdf.set_text_color(20, 20, 20)
             pdf.multi_cell(0, 10, f"{brand} {model} - {headline}", align='C')
             
-            pdf.ln(2)
-            pdf.set_fill_color(245, 245, 245)
-            pdf.rect(10, pdf.get_y(), 190, 12, 'F')
+            pdf.set_fill_color(245, 245, 245); pdf.rect(10, pdf.get_y(), 190, 12, 'F')
+            pdf.set_y(pdf.get_y()+3); pdf.set_font('Helvetica', 'B', 9); pdf.set_text_color(80, 80, 80)
+            pdf.cell(63, 6, f"ENGINE: {spec_engine}", align='C')
+            pdf.cell(63, 6, f"HYDRAULIC: {spec_cap}", align='C')
+            pdf.cell(63, 6, f"BOBOT: {spec_weight}", align='C', ln=True)
             
-            pdf.set_y(pdf.get_y() + 3)
-            pdf.set_font('Helvetica', 'B', 9)
-            pdf.set_text_color(80, 80, 80)
-            pdf.cell(63, 6, f"ENGINE: {spec_engine.upper()}", align='C')
-            pdf.cell(63, 6, f"Hydraulic System: {spec_cap.upper()}", align='C')
-            pdf.cell(63, 6, f"BOBOT: {spec_weight.upper()}", align='C', ln=True)
+            pdf.ln(5); pdf.set_fill_color(*b_color); pdf.set_text_color(255, 255, 255); pdf.set_font('Helvetica', 'B', 10)
+            pdf.cell(60, 8, badge1.upper(), fill=True, align='C')
+            pdf.cell(5); pdf.cell(60, 8, badge2.upper() if badge2 else "-", fill=True, align='C')
+            pdf.cell(5); pdf.cell(60, 8, badge3.upper(), fill=True, align='C', ln=True)
             
-            # --- TRUST BADGES ---
-            pdf.ln(5)
-            pdf.set_font('Helvetica', 'B', 10)
-            pdf.set_text_color(255, 255, 255)
-            start_x = 10
-            box_w = 60
-            spacing = 5
-            
-            def draw_badge(text, is_last=False):
-                if text.strip():
-                    pdf.cell(box_w, 8, f"{text.upper()}", align='C', fill=True, ln=is_last)
-                else:
-                    pdf.cell(box_w, 8, "", align='C', ln=is_last)
-
-            pdf.set_fill_color(*b_color)
-            pdf.set_xy(start_x, pdf.get_y())
-            draw_badge(badge1)
-            pdf.cell(spacing, 8, "", align='C')
-            draw_badge(badge2)
-            pdf.cell(spacing, 8, "", align='C')
-            draw_badge(badge3, is_last=True)
-            pdf.ln(8)
-            
-            # --- COPYWRITING AI ---
-            lines = final_copy.strip().split('\n')
-            for line in lines:
+            pdf.ln(8); pdf.set_text_color(50, 50, 50)
+            for line in final_copy.strip().split('\n'):
                 if '|' in line:
-                    judul, deskripsi = line.split('|', 1)
-                    judul_bersih = judul.replace("**", "").replace("*", "").strip().upper()
-                    deskripsi_bersih = deskripsi.replace("**", "").replace("*", "").strip()
-                    
-                    pdf.set_fill_color(*b_color)
-                    pdf.ellipse(10, pdf.get_y() + 2, 3, 3, 'F')
-                    
-                    pdf.set_xy(16, pdf.get_y())
-                    pdf.set_font('Helvetica', 'B', 12)
-                    pdf.set_text_color(*b_color)
-                    pdf.cell(0, 6, judul_bersih, ln=True)
-                    
-                    pdf.set_xy(16, pdf.get_y())
-                    pdf.set_font('Helvetica', '', 10)
-                    pdf.set_text_color(50, 50, 50)
-                    pdf.multi_cell(0, 5, deskripsi_bersih)
-                    pdf.ln(4)
-            
-            # --- KONTAK WA (POSISI DINAMIS ANTI-TABRAKAN) ---
-            safe_y = max(pdf.get_y() + 8, 245)
-            
-            pdf.set_xy(10, safe_y)
-            pdf.set_font('Helvetica', 'B', 12)
-            pdf.set_text_color(20, 20, 20)
-            pdf.cell(50, 6, "HUBUNGI SALES KAMI:", ln=True)
-            
-            pdf.set_font('Helvetica', 'B', 16)
-            pdf.set_text_color(*b_color)
-            wa_clean = wa_num.replace("+", "")
-            wa_link = f"https://wa.me/{wa_clean}"
-            pdf.cell(50, 8, f"WhatsApp: {wa_num}", link=wa_link, ln=True)
+                    j, d = line.split('|', 1)
+                    pdf.set_font('Helvetica', 'B', 12); pdf.set_text_color(*b_color)
+                    pdf.cell(0, 6, j.strip().upper(), ln=True)
+                    pdf.set_font('Helvetica', '', 10); pdf.set_text_color(50, 50, 50)
+                    pdf.multi_cell(0, 5, d.strip()); pdf.ln(2)
 
-            if logo_path and os.path.exists(logo_path):
-                os.remove(logo_path)
+            # Footer WA
+            pdf.set_xy(10, 250); pdf.set_font('Helvetica', 'B', 12); pdf.set_text_color(20, 20, 20)
+            pdf.cell(0, 6, "HUBUNGI SALES KAMI:", ln=True)
+            pdf.set_font('Helvetica', 'B', 16); pdf.set_text_color(*b_color)
+            pdf.cell(0, 8, f"WhatsApp: {wa_num}", ln=True, link=f"https://wa.me/{wa_num.replace('+', '')}")
 
-            # --- EKSEKUSI MULTI-FORMAT ---
+            # Export
             out = pdf.output(dest='S')
-            pdf_bytes = bytes(out)
-            
-            doc = fitz.open("pdf", pdf_bytes)
-            page = doc.load_page(0)
-            pix = page.get_pixmap(dpi=300)
-            png_bytes = pix.tobytes("png")
-            
-            st.success("🎉 Brosur Mahakarya berhasil dibuat dengan Layout Sempurna!")
-            
-            dl_col1, dl_col2 = st.columns(2)
-            with dl_col1:
-                st.download_button("⬇️ Download High-Res PDF", data=pdf_bytes, file_name=f"{brand}_Brosur_{model}.pdf", mime="application/pdf")
-            with dl_col2:
-                st.download_button("🖼️ Download Gambar (PNG)", data=png_bytes, file_name=f"{brand}_Brosur_{model}.png", mime="image/png")
+            pdf_b = bytes(out)
+            doc = fitz.open("pdf", pdf_b)
+            pix = doc.load_page(0).get_pixmap(dpi=300)
+            st.success("✅ Selesai!")
+            st.download_button("⬇️ PDF", data=pdf_b, file_name="Brosur.pdf")
+            st.download_button("🖼️ PNG", data=pix.tobytes("png"), file_name="Brosur.png")
