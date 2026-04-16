@@ -161,7 +161,7 @@ with col2:
                     {scraped_text}
                     """
                     
-                    api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
+                    api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-flash-latest:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
                     payload = {"contents": [{"parts": [{"text": prompt}]}]}
                     
