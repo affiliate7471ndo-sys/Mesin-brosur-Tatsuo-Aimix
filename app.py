@@ -162,12 +162,12 @@ with col2:
                     {scraped_text}
                     """
                     
-                    # --- PERBAIKAN KRUSIAL: Menggunakan jalur v1beta untuk model 1.5 ---
-                    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    # --- KEMBALI MENGGUNAKAN MODEL GEMINI-2.5-FLASH YANG TERBUKTI STABIL ---
+                    api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
                     payload = {"contents": [{"parts": [{"text": prompt}]}]}
                     
-                    # --- SISTEM AUTO-RETRY 3 KALI ---
+                    # --- SISTEM AUTO-RETRY 3 KALI JIKA SERVER GOOGLE SIBUK ---
                     max_retries = 3
                     berhasil = False
                     
