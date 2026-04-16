@@ -54,8 +54,8 @@ class ProBrochure(FPDF):
         self.cell(0, 4, f'Authorized Representative: Adjie Agung | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
-st.title("🚀 Ultimate Brochure Engine + Smart Queue")
-st.write("Generasi terbaru dengan Sistem Antrean Pintar (Exponential Backoff) untuk mengatasi server penuh.")
+st.title("🚀 Ultimate Brochure Engine + Auto Fallback")
+st.write("Generasi terbaru dengan Radar Pencari Mesin Otomatis (Anti-Error 404).")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -119,7 +119,7 @@ with col2:
         if not ref_link and not pdf_path_to_read:
             st.error("Silakan masukkan Link Website atau pilih/upload Katalog PDF.")
         else:
-            with st.spinner("AI sedang menganalisis data..."):
+            with st.spinner("AI sedang membaca data dan mencari server yang tersedia..."):
                 try:
                     api_key = st.secrets["GOOGLE_API_KEY"]
                     scraped_text = ""
@@ -162,54 +162,64 @@ with col2:
                     {scraped_text}
                     """
                     
-                    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    # --- SISTEM RADAR: MENCARI MODEL YANG DIIZINKAN OLEH API KEY ANDA ---
+                    endpoints_to_try = [
+                        ("v1beta", "gemini-1.5-flash"),
+                        ("v1", "gemini-1.5-flash"),
+                        ("v1beta", "gemini-pro"), # Model klasik yang pasti berhasil
+                        ("v1", "gemini-pro")
+                    ]
+                    
                     headers = {'Content-Type': 'application/json'}
                     payload = {"contents": [{"parts": [{"text": prompt}]}]}
                     
-                    # --- SISTEM SMART QUEUE (EXPONENTIAL BACKOFF) ---
-                    max_retries = 5 # Naikkan jadi 5 kali percobaan
                     berhasil = False
-                    status_placeholder = st.empty() # Tempat untuk memunculkan pesan antrean
+                    status_placeholder = st.empty()
+                    error_logs = []
                     
-                    for attempt in range(max_retries):
-                        try:
-                            response = requests.post(api_url, headers=headers, json=payload, timeout=50)
+                    for version, model_name in endpoints_to_try:
+                        if berhasil:
+                            break
                             
-                            if response.status_code == 200:
-                                data = response.json()
-                                hasil_ai = data['candidates'][0]['content']['parts'][0]['text']
-                                st.session_state['ai_result'] = hasil_ai
-                                status_placeholder.empty() # Bersihkan pesan antrean
-                                st.success("✅ Teks jualan berhasil dibuat!")
-                                berhasil = True
-                                break 
-                            elif response.status_code == 503 or response.status_code == 429:
-                                # Jika server sibuk (503) atau limit batas (429)
-                                if attempt < max_retries - 1:
-                                    wait_time = 3 * (2 ** attempt) # Waktu tunggu: 3s, 6s, 12s, 24s...
-                                    status_placeholder.warning(f"⏳ Server Google penuh (503). Mengantre secara otomatis selama {wait_time} detik... (Percobaan {attempt+1}/{max_retries})")
-                                    time.sleep(wait_time)
-                                else:
+                        api_url = f"https://generativelanguage.googleapis.com/{version}/models/{model_name}:generateContent?key={api_key}"
+                        status_placeholder.info(f"🔄 Menguji mesin: {model_name} (Jalur {version})...")
+                        
+                        max_retries = 3
+                        for attempt in range(max_retries):
+                            try:
+                                response = requests.post(api_url, headers=headers, json=payload, timeout=40)
+                                
+                                if response.status_code == 200:
+                                    data = response.json()
+                                    hasil_ai = data['candidates'][0]['content']['parts'][0]['text']
+                                    st.session_state['ai_result'] = hasil_ai
                                     status_placeholder.empty()
-                                    st.error("Server Google benar-benar penuh saat ini. Mohon tunggu beberapa menit dan klik tombolnya lagi nanti.")
-                            else:
-                                # Jika error lain (bukan karena penuh)
+                                    st.success(f"✅ Teks jualan berhasil dibuat oleh {model_name}!")
+                                    berhasil = True
+                                    break 
+                                elif response.status_code == 404:
+                                    # Jika API Key ditolak, langsung pindah ke model berikutnya!
+                                    error_logs.append(f"{model_name}: Ditolak/404")
+                                    break 
+                                elif response.status_code in [503, 429]:
+                                    if attempt < max_retries - 1:
+                                        time.sleep(3)
+                                    else:
+                                        error_logs.append(f"{model_name}: Server Penuh")
+                                else:
+                                    if attempt < max_retries - 1:
+                                        time.sleep(3)
+                                    else:
+                                        error_logs.append(f"{model_name}: Error {response.status_code}")
+                            except Exception as e:
                                 if attempt < max_retries - 1:
                                     time.sleep(3)
                                 else:
-                                    try:
-                                        err_data = response.json()
-                                        error_msg = err_data.get('error', {}).get('message', str(err_data))
-                                    except:
-                                        error_msg = response.text
-                                    status_placeholder.empty()
-                                    st.error(f"Gagal memanggil API. Status: {response.status_code}. Detail: {error_msg}")
-                        except Exception as e:
-                            if attempt < max_retries - 1:
-                                time.sleep(3)
-                            else:
-                                status_placeholder.empty()
-                                st.error(f"Koneksi terputus/Timeout: {e}")
+                                    error_logs.append(f"{model_name}: Timeout")
+
+                    if not berhasil:
+                        status_placeholder.empty()
+                        st.error("🚨 Gagal memanggil semua mesin API. Server Google sedang down atau API Key Anda bermasalah.\n" + str(error_logs))
 
                 except Exception as e:
                     st.error(f"Terjadi kesalahan teknis internal: {e}")
@@ -235,6 +245,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf = ProBrochure(brand_color=b_color, brand_name=brand, website_link=ref_link, logo_path=logo_path, wa_number=wa_num)
             pdf.add_page()
             
+            # --- PEMBUATAN WATERMARK TRANSPARAN ---
             if logo_path and os.path.exists(logo_path):
                 try:
                     wm_path = f"wm_{uuid.uuid4()}.png"
@@ -248,6 +259,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                 except Exception as e:
                     pass 
 
+            # --- QR CODE DIPINDAH KE POJOK KIRI ATAS ---
             if ref_link:
                 qr = qrcode.make(ref_link)
                 qr_path = f"qr_{uuid.uuid4()}.png"
@@ -260,6 +272,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                 pdf.cell(32, 3, "SCAN FOR DETAILS", align='C')
                 if os.path.exists(qr_path): os.remove(qr_path)
             
+            # --- GAMBAR UTAMA DIGESER KE ATAS ---
             img_path = f"temp_hero_{uuid.uuid4()}.png"
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
@@ -267,6 +280,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.image(img_path, x=42, y=15, w=125)
             if os.path.exists(img_path): os.remove(img_path)
             
+            # --- HEADLINE & SPECS NAIK MENGIKUTI GAMBAR ---
             pdf.set_y(115) 
             pdf.set_font('Helvetica', 'B', 18) 
             pdf.set_text_color(20, 20, 20)
@@ -283,6 +297,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.cell(63, 6, f"Hydraulic System: {spec_cap.upper()}", align='C')
             pdf.cell(63, 6, f"BOBOT: {spec_weight.upper()}", align='C', ln=True)
             
+            # --- TRUST BADGES ---
             pdf.ln(5)
             pdf.set_font('Helvetica', 'B', 10)
             pdf.set_text_color(255, 255, 255)
@@ -305,6 +320,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             draw_badge(badge3, is_last=True)
             pdf.ln(8)
             
+            # --- COPYWRITING AI ---
             lines = final_copy.strip().split('\n')
             for line in lines:
                 if '|' in line:
@@ -326,6 +342,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                     pdf.multi_cell(0, 5, deskripsi_bersih)
                     pdf.ln(4)
             
+            # --- KONTAK WA (POSISI DINAMIS ANTI-TABRAKAN) ---
             safe_y = max(pdf.get_y() + 8, 245)
             
             pdf.set_xy(10, safe_y)
@@ -342,6 +359,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             if logo_path and os.path.exists(logo_path):
                 os.remove(logo_path)
 
+            # --- EKSEKUSI MULTI-FORMAT ---
             out = pdf.output(dest='S')
             pdf_bytes = bytes(out)
             
