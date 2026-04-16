@@ -11,7 +11,7 @@ import PyPDF2
 import fitz
 from PIL import Image
 import time
-import re  # Digunakan untuk mengekstrak respons JSON dari AI
+import re  
 
 st.set_page_config(page_title="Ultimate Pro Brochure Engine", layout="wide")
 
@@ -84,21 +84,21 @@ with col1:
     foto = st.file_uploader("Upload Foto Unit Utama", type=['png', 'jpg', 'jpeg'])
     
     st.markdown("---")
-    # KOTAK MERAH SEKARANG MENGGUNAKAN SESSION STATE AGAR BISA DIISI OTOMATIS OLEH AI
-    model = st.text_input("Tipe Unit", key="tipe_unit")
-    headline = st.text_input("Headline Utama", key="headline")
+    # PERBAIKAN: Menggunakan value= alih-alih key= agar AI bisa mengisinya tanpa error Streamlit
+    model = st.text_input("Tipe Unit", value=st.session_state.tipe_unit)
+    headline = st.text_input("Headline Utama", value=st.session_state.headline)
     
     st.caption("Highlight Spesifikasi Cepat")
     c_sp1, c_sp2, c_sp3 = st.columns(3)
-    with c_sp1: spec_engine = st.text_input("Engine / Power", key="engine")
-    with c_sp2: spec_cap = st.text_input("Hydraulic System", key="hydraulic")
-    with c_sp3: spec_weight = st.text_input("Bobot Unit", key="bobot")
+    with c_sp1: spec_engine = st.text_input("Engine / Power", value=st.session_state.engine)
+    with c_sp2: spec_cap = st.text_input("Hydraulic System", value=st.session_state.hydraulic)
+    with c_sp3: spec_weight = st.text_input("Bobot Unit", value=st.session_state.bobot)
 
     st.caption("Stempel Kepercayaan (Trust Badges)")
     b_col1, b_col2, b_col3 = st.columns(3)
-    with b_col1: badge1 = st.text_input("Badge 1", key="badge1")
-    with b_col2: badge2 = st.text_input("Badge 2", key="badge2")
-    with b_col3: badge3 = st.text_input("Badge 3", key="badge3")
+    with b_col1: badge1 = st.text_input("Badge 1", value=st.session_state.badge1)
+    with b_col2: badge2 = st.text_input("Badge 2", value=st.session_state.badge2)
+    with b_col3: badge3 = st.text_input("Badge 3", value=st.session_state.badge3)
 
 with col2:
     st.subheader("2. AI Data Extractor & Copywriter")
@@ -158,7 +158,6 @@ with col2:
                             
                     scraped_text = scraped_text[:12000] 
                     
-                    # PROMPT BARU: Meminta AI mengembalikan data dalam format JSON agar bisa dimasukkan ke kotak
                     prompt = f"""
                     Anda adalah Data Extractor dan Copywriter Alat Berat.
                     Baca data spesifikasi ini:
@@ -180,12 +179,10 @@ with col2:
                     }}
                     """
                     
-                    # MENGGUNAKAN MESIN STABIL ANDA: gemini-2.5-flash
                     api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
                     payload = {"contents": [{"parts": [{"text": prompt}]}]}
                     
-                    # --- SISTEM AUTO-RETRY ANTI GAGAL ---
                     max_retries = 3
                     berhasil = False
                     
@@ -197,13 +194,11 @@ with col2:
                                 data = response.json()
                                 hasil_ai_mentah = data['candidates'][0]['content']['parts'][0]['text']
                                 
-                                # Membersihkan dan membaca format JSON dari AI
                                 match = re.search(r'\{.*\}', hasil_ai_mentah, re.DOTALL)
                                 if match:
                                     json_str = match.group(0)
                                     extracted_data = json.loads(json_str)
                                     
-                                    # MENYUNTIKKAN DATA AI LANGSUNG KE KOTAK MERAH
                                     st.session_state.tipe_unit = extracted_data.get('tipe_unit', st.session_state.tipe_unit).upper()
                                     st.session_state.headline = extracted_data.get('headline', st.session_state.headline).upper()
                                     st.session_state.engine = extracted_data.get('engine', st.session_state.engine)
@@ -215,8 +210,8 @@ with col2:
                                     st.session_state.copywriting = extracted_data.get('copywriting', st.session_state.copywriting)
                                     
                                     st.success("✅ Berhasil mengekstrak data! Formulir telah diisi otomatis.")
-                                    time.sleep(1) # Jeda sedikit agar pesan sukses terbaca
-                                    st.rerun() # Refresh aplikasi agar teks muncul di kotak input
+                                    time.sleep(1) 
+                                    st.rerun() 
                                 else:
                                     st.error("AI gagal memformat data dengan benar. Silakan coba lagi.")
                                 
@@ -241,7 +236,8 @@ with col2:
                 except Exception as e:
                     st.error(f"Terjadi kesalahan teknis internal: {e}")
 
-    final_copy = st.text_area("Hasil Copywriting (Bisa diedit manual)", key="copywriting", height=150)
+    # PERBAIKAN: value= digunakan di text area juga
+    final_copy = st.text_area("Hasil Copywriting (Bisa diedit manual)", value=st.session_state.copywriting, height=150)
 
 st.markdown("---")
 
@@ -261,7 +257,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf = ProBrochure(brand_color=b_color, brand_name=brand, website_link=ref_link, logo_path=logo_path, wa_number=wa_num)
             pdf.add_page()
             
-            # --- PEMBUATAN WATERMARK TRANSPARAN ---
             if logo_path and os.path.exists(logo_path):
                 try:
                     wm_path = f"wm_{uuid.uuid4()}.png"
@@ -275,7 +270,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                 except:
                     pass 
 
-            # --- QR CODE DI POJOK KIRI ATAS ---
             if ref_link:
                 qr = qrcode.make(ref_link)
                 qr_path = f"qr_{uuid.uuid4()}.png"
@@ -288,7 +282,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                 pdf.cell(30, 3, "SCAN FOR DETAILS", align='C')
                 if os.path.exists(qr_path): os.remove(qr_path)
             
-            # --- GAMBAR UTAMA DIGESER KE ATAS ---
             img_path = f"temp_hero_{uuid.uuid4()}.png"
             with open(img_path, "wb") as f:
                 f.write(foto.getbuffer())
@@ -296,7 +289,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.image(img_path, x=40, y=14, w=130)
             if os.path.exists(img_path): os.remove(img_path)
             
-            # --- HEADLINE & SPECS MENGAMBIL DARI STATE ---
             pdf.set_y(115)
             pdf.set_font('Helvetica', 'B', 18) 
             pdf.set_text_color(20, 20, 20)
@@ -313,7 +305,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.cell(63, 6, f"HYDRAULIC: {spec_cap.upper()}", align='C')
             pdf.cell(63, 6, f"BOBOT: {spec_weight.upper()}", align='C', ln=True)
             
-            # --- TRUST BADGES ---
             pdf.ln(5)
             pdf.set_font('Helvetica', 'B', 10)
             pdf.set_text_color(255, 255, 255)
@@ -336,7 +327,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             draw_badge(badge3, is_last=True)
             pdf.ln(8)
             
-            # --- COPYWRITING AI ---
             lines = final_copy.strip().split('\n')
             for line in lines:
                 if '|' in line:
@@ -358,7 +348,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
                     pdf.multi_cell(0, 5, deskripsi_bersih)
                     pdf.ln(4)
             
-            # --- KONTAK WA ANTI TABRAKAN ---
             safe_y = max(pdf.get_y() + 6, 245)
             
             pdf.set_xy(10, safe_y)
@@ -375,7 +364,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             if logo_path and os.path.exists(logo_path):
                 os.remove(logo_path)
 
-            # --- EKSEKUSI MULTI-FORMAT ---
             out = pdf.output(dest='S')
             pdf_bytes = bytes(out)
             
