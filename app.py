@@ -54,8 +54,8 @@ class ProBrochure(FPDF):
         self.cell(0, 4, f'Authorized Representative: Adjie Agung | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
-st.title("🚀 Ultimate Brochure Engine")
-st.write("Generasi terbaru dengan Tata Letak Cerdas dan Jalur API Stabil.")
+st.title("🚀 Ultimate Brochure Engine + Gemini 2.0")
+st.write("Menggunakan model AI terbaru untuk hasil copywriting yang lebih tajam dan akurat.")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -110,7 +110,7 @@ with col2:
     wa_num = st.text_input("Nomor WA", "+6281230857759")
     
     if st.button("✨ Tarik Data AI"):
-        with st.spinner("AI sedang memproses..."):
+        with st.spinner("AI sedang memproses dengan mesin Gemini 2.0..."):
             try:
                 api_key = st.secrets["GOOGLE_API_KEY"]
                 scraped_text = ""
@@ -118,7 +118,7 @@ with col2:
                 if ref_link:
                     try:
                         res = requests.get(ref_link, timeout=10)
-                        scraped_text += BeautifulSoup(res.text, 'html.parser').get_text()[:2000]
+                        scraped_text += BeautifulSoup(res.text, 'html.parser').get_text()[:2500]
                     except: pass
 
                 if pdf_path_to_read:
@@ -129,13 +129,14 @@ with col2:
                                 scraped_text += pdf_reader.pages[i].extract_text()
                     except: pass
                 
-                prompt = f"Buat 4 poin keunggulan alat berat: {scraped_text[:5000]}. Format: Judul | Deskripsi."
+                prompt = f"Buat 4 poin keunggulan alat berat dari data ini: {scraped_text[:6000]}. Format wajib: Judul | Deskripsi singkat 2 kalimat."
                 
-                # --- JALUR PALING STABIL: v1/models/gemini-pro ---
-                api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}"
+                # --- PENGGUNAAN MODEL VALID DARI DAFTAR ANDA ---
+                api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
                 headers = {'Content-Type': 'application/json'}
                 payload = {"contents": [{"parts": [{"text": prompt}]}]}
                 
+                # Auto Retry jika server sibuk
                 for attempt in range(3):
                     response = requests.post(api_url, headers=headers, json=payload, timeout=30)
                     if response.status_code == 200:
@@ -143,7 +144,7 @@ with col2:
                         st.success("✅ Berhasil!")
                         break
                     else:
-                        time.sleep(2)
+                        time.sleep(3)
                         if attempt == 2:
                             st.error(f"Error: {response.status_code} - {response.text}")
             except Exception as e:
@@ -157,7 +158,7 @@ if st.button("🌟 Generate Brochure"):
     if not foto:
         st.warning("Upload foto unit.")
     else:
-        with st.spinner("Membuat Brosur..."):
+        with st.spinner("Membuat Brosur Mahakarya..."):
             b_color = (0, 82, 155) if brand == "AIMIX" else (204, 0, 0)
             logo_path = None
             if logo_file:
@@ -167,7 +168,14 @@ if st.button("🌟 Generate Brochure"):
             pdf = ProBrochure(b_color, brand, ref_link, logo_path, wa_num)
             pdf.add_page()
             
-            # Watermark & QR
+            # 1. QR Code (Kiri Atas sesuai permintaan Bapak)
+            if ref_link:
+                qr_p = f"qr_{uuid.uuid4()}.png"; qrcode.make(ref_link).save(qr_p)
+                pdf.image(qr_p, x=12, y=8, w=22, h=22)
+                pdf.set_xy(8, 31); pdf.set_font('Helvetica', 'B', 6); pdf.set_text_color(*b_color)
+                pdf.cell(30, 3, "SCAN FOR DETAILS", align='C')
+
+            # 2. Watermark Transparan
             if logo_path:
                 img = Image.open(logo_path).convert("RGBA")
                 alpha = img.split()[3].point(lambda p: p * 0.1)
@@ -175,18 +183,12 @@ if st.button("🌟 Generate Brochure"):
                 wm_p = f"wm_{uuid.uuid4()}.png"; img.save(wm_p)
                 pdf.image(wm_p, x=35, y=90, w=140)
             
-            if ref_link:
-                qr_p = f"qr_{uuid.uuid4()}.png"; qrcode.make(ref_link).save(qr_p)
-                pdf.image(qr_p, x=12, y=8, w=22, h=22)
-                pdf.set_xy(8, 31); pdf.set_font('Helvetica', 'B', 6); pdf.set_text_color(*b_color)
-                pdf.cell(30, 3, "SCAN FOR DETAILS", align='C')
-
-            # Hero Image
+            # 3. Hero Image (Dinaikkan sesuai permintaan Bapak)
             img_p = f"hero_{uuid.uuid4()}.png"
             with open(img_p, "wb") as f: f.write(foto.getbuffer())
             pdf.image(img_p, x=40, y=14, w=130)
             
-            # Text Layout
+            # 4. Headline & Specs
             pdf.set_y(115); pdf.set_font('Helvetica', 'B', 18); pdf.set_text_color(20, 20, 20)
             pdf.multi_cell(0, 10, f"{brand} {model} - {headline}", align='C')
             
@@ -196,11 +198,13 @@ if st.button("🌟 Generate Brochure"):
             pdf.cell(63, 6, f"HYDRAULIC: {spec_cap}", align='C')
             pdf.cell(63, 6, f"BOBOT: {spec_weight}", align='C', ln=True)
             
-            pdf.ln(5); pdf.set_fill_color(*b_color); pdf.set_text_color(255, 255, 255)
+            # 5. Badges
+            pdf.ln(5); pdf.set_fill_color(*b_color); pdf.set_text_color(255, 255, 255); pdf.set_font('Helvetica', 'B', 10)
             pdf.cell(60, 8, badge1.upper(), fill=True, align='C')
             pdf.cell(5); pdf.cell(60, 8, badge2.upper() if badge2 else "-", fill=True, align='C')
             pdf.cell(5); pdf.cell(60, 8, badge3.upper(), fill=True, align='C', ln=True)
             
+            # 6. Copywriting AI
             pdf.ln(8); pdf.set_text_color(50, 50, 50)
             for line in final_copy.strip().split('\n'):
                 if '|' in line:
@@ -210,14 +214,16 @@ if st.button("🌟 Generate Brochure"):
                     pdf.set_font('Helvetica', '', 10); pdf.set_text_color(50, 50, 50)
                     pdf.multi_cell(0, 5, d.strip()); pdf.ln(2)
 
-            pdf.set_xy(10, 250); pdf.set_font('Helvetica', 'B', 12); pdf.set_text_color(20, 20, 20)
+            # 7. Contact Info (Anti-Tabrakan)
+            safe_y = max(pdf.get_y() + 6, 245)
+            pdf.set_xy(10, safe_y); pdf.set_font('Helvetica', 'B', 12); pdf.set_text_color(20, 20, 20)
             pdf.cell(0, 6, "HUBUNGI SALES KAMI:", ln=True)
             pdf.set_font('Helvetica', 'B', 16); pdf.set_text_color(*b_color)
             pdf.cell(0, 8, f"WhatsApp: {wa_num}", ln=True)
 
-            # Output
+            # Export multi-format
             out = pdf.output(dest='S'); pdf_b = bytes(out)
             doc = fitz.open("pdf", pdf_b); pix = doc.load_page(0).get_pixmap(dpi=300)
-            st.success("✅ Brosur Siap!")
-            st.download_button("⬇️ Download PDF", data=pdf_b, file_name="Brosur.pdf")
-            st.download_button("🖼️ Download PNG", data=pix.tobytes("png"), file_name="Brosur.png")
+            st.success("✅ Brosur Sempurna Berhasil Dibuat!")
+            st.download_button("⬇️ Download PDF", data=pdf_b, file_name=f"Brosur_{brand}.pdf")
+            st.download_button("🖼️ Download PNG", data=pix.tobytes("png"), file_name=f"Brosur_{brand}.png")
