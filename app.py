@@ -162,8 +162,8 @@ with col2:
                     {scraped_text}
                     """
                     
-                    # --- PERBAIKAN: Nama Model yang 100% Valid ---
-                    api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    # --- PERBAIKAN KRUSIAL: Menggunakan jalur v1beta untuk model 1.5 ---
+                    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
                     payload = {"contents": [{"parts": [{"text": prompt}]}]}
                     
