@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import PyPDF2
 import fitz
 from PIL import Image
-import time  # Wajib untuk fitur Auto-Retry
+import time  
 
 st.set_page_config(page_title="Ultimate Pro Brochure Engine", layout="wide")
 
@@ -162,8 +162,8 @@ with col2:
                     {scraped_text}
                     """
                     
-                    # Menggunakan model gemini-flash-latest sesuai pilihan Bapak
-                    api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-flash-latest:generateContent?key={api_key}"
+                    # --- PERBAIKAN: Nama Model yang 100% Valid ---
+                    api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
                     payload = {"contents": [{"parts": [{"text": prompt}]}]}
                     
