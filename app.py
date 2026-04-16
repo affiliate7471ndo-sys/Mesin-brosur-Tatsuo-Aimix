@@ -11,6 +11,7 @@ import PyPDF2
 import fitz
 from PIL import Image
 import time
+import re  # Digunakan untuk mengekstrak respons JSON dari AI
 
 st.set_page_config(page_title="Ultimate Pro Brochure Engine", layout="wide")
 
@@ -18,6 +19,17 @@ st.set_page_config(page_title="Ultimate Pro Brochure Engine", layout="wide")
 CATALOG_DIR = "katalog_tersimpan"
 if not os.path.exists(CATALOG_DIR):
     os.makedirs(CATALOG_DIR)
+
+# --- INISIALISASI SESSION STATE UNTUK KOTAK MERAH (AUTO-FILL) ---
+if 'tipe_unit' not in st.session_state: st.session_state.tipe_unit = "EXCAVATOR / WHEEL LOADER"
+if 'headline' not in st.session_state: st.session_state.headline = "LEBIH CERDAS, LEBIH AKURAT, LEBIH ANDAL"
+if 'engine' not in st.session_state: st.session_state.engine = "Yanmar 4TNV98-ZCVLGC"
+if 'hydraulic' not in st.session_state: st.session_state.hydraulic = "Rexroth"
+if 'bobot' not in st.session_state: st.session_state.bobot = "9600kg"
+if 'badge1' not in st.session_state: st.session_state.badge1 = "GARANSI 1 TAHUN"
+if 'badge2' not in st.session_state: st.session_state.badge2 = "READY STOCK"
+if 'badge3' not in st.session_state: st.session_state.badge3 = "TEKNISI 24/7"
+if 'copywriting' not in st.session_state: st.session_state.copywriting = "BELUM ADA DATA.\nSilakan klik tombol di atas atau ketik manual dengan format:\nJUDUL | Deskripsi..."
 
 class ProBrochure(FPDF):
     def __init__(self, brand_color, brand_name, website_link, logo_path, wa_number):
@@ -54,8 +66,8 @@ class ProBrochure(FPDF):
         self.cell(0, 4, f'Authorized Representative: Adjie Agung | {clean_link}', align='C', ln=True)
 
 # --- UI DASHBOARD ---
-st.title("🚀 Ultimate Brochure Engine + Auto Retry")
-st.write("Generasi terbaru dengan Tata Letak Cerdas dan Sistem Anti-Gagal (Auto-Retry API).")
+st.title("🚀 Ultimate Brochure Engine + Full Auto")
+st.write("Generasi terbaru: AI akan otomatis mengisi Spesifikasi dan Copywriting ke dalam formulir.")
 
 col1, col2 = st.columns([1, 1.2])
 
@@ -65,32 +77,31 @@ with col1:
     
     if brand == "AIMIX":
         default_link = "https://aimix-self-loading-mixer.netlify.app/"
-        default_model = "SELF LOADING MIXER"
     else:
         default_link = "https://tatsuosales-id.netlify.app/#/"
-        default_model = "EXCAVATOR / WHEEL LOADER"
 
     logo_file = st.file_uploader("Upload Logo Brand (PNG Transparan)", type=['png', 'jpg', 'jpeg'])
     foto = st.file_uploader("Upload Foto Unit Utama", type=['png', 'jpg', 'jpeg'])
     
     st.markdown("---")
-    model = st.text_input("Tipe Unit", default_model)
-    headline = st.text_input("Headline Utama", "LEBIH CERDAS, LEBIH AKURAT, LEBIH ANDAL")
+    # KOTAK MERAH SEKARANG MENGGUNAKAN SESSION STATE AGAR BISA DIISI OTOMATIS OLEH AI
+    model = st.text_input("Tipe Unit", key="tipe_unit")
+    headline = st.text_input("Headline Utama", key="headline")
     
     st.caption("Highlight Spesifikasi Cepat")
     c_sp1, c_sp2, c_sp3 = st.columns(3)
-    with c_sp1: spec_engine = st.text_input("Engine / Power", "Yanmar 4TNV98-ZCVLGC")
-    with c_sp2: spec_cap = st.text_input("Hydraulic System", "Rexroth")
-    with c_sp3: spec_weight = st.text_input("Bobot Unit", "9600kg")
+    with c_sp1: spec_engine = st.text_input("Engine / Power", key="engine")
+    with c_sp2: spec_cap = st.text_input("Hydraulic System", key="hydraulic")
+    with c_sp3: spec_weight = st.text_input("Bobot Unit", key="bobot")
 
     st.caption("Stempel Kepercayaan (Trust Badges)")
     b_col1, b_col2, b_col3 = st.columns(3)
-    with b_col1: badge1 = st.text_input("Badge 1", "GARANSI 1 TAHUN")
-    with b_col2: badge2 = st.text_input("Badge 2", "READY STOCK")
-    with b_col3: badge3 = st.text_input("Badge 3", "TEKNISI 24/7")
+    with b_col1: badge1 = st.text_input("Badge 1", key="badge1")
+    with b_col2: badge2 = st.text_input("Badge 2", key="badge2")
+    with b_col3: badge3 = st.text_input("Badge 3", key="badge3")
 
 with col2:
-    st.subheader("2. AI Copywriter & Database Referensi")
+    st.subheader("2. AI Data Extractor & Copywriter")
     
     ref_link = st.text_input("Link Website Produk (Opsional)", default_link)
     
@@ -114,11 +125,11 @@ with col2:
         
     wa_num = st.text_input("Nomor WhatsApp (Contoh: +628123456789)", "+6281230857759")
     
-    if st.button("✨ Tarik Data & Buat Copywriting Otomatis"):
+    if st.button("✨ Tarik Data & Isi Formulir Otomatis"):
         if not ref_link and not pdf_path_to_read:
             st.error("Silakan masukkan Link Website atau pilih/upload Katalog PDF.")
         else:
-            with st.spinner("AI sedang menganalisis data (Mohon tunggu, proses auto-retry aktif jika server sibuk)..."):
+            with st.spinner("AI sedang membaca data dan mengekstrak spesifikasi untuk Anda..."):
                 try:
                     api_key = st.secrets["GOOGLE_API_KEY"]
                     scraped_text = ""
@@ -147,20 +158,29 @@ with col2:
                             
                     scraped_text = scraped_text[:12000] 
                     
+                    # PROMPT BARU: Meminta AI mengembalikan data dalam format JSON agar bisa dimasukkan ke kotak
                     prompt = f"""
-                    Anda adalah Copywriter Alat Berat profesional.
-                    Baca data spesifikasi gabungan di bawah ini dan ekstrak menjadi 4 poin keunggulan utama.
-                    Fokus pada fitur mesin, efisiensi operasional, kekuatan, atau garansi.
-                    Gunakan bahasa Indonesia yang powerful, maskulin, dan menunjukkan efisiensi pembeli.
-                    
-                    ATURAN FORMAT WAJIB (Gunakan pemisah tanda | antara judul dan deskripsi. Jangan gunakan tanda bintang):
-                    JUDUL FITUR 1 | Deskripsi penjelasan yang menjual maksimal 2 kalimat.
-                    JUDUL FITUR 2 | Deskripsi penjelasan yang menjual maksimal 2 kalimat.
-                    
-                    Data spesifikasi:
+                    Anda adalah Data Extractor dan Copywriter Alat Berat.
+                    Baca data spesifikasi ini:
                     {scraped_text}
+                    
+                    TUGAS WAJIB:
+                    Kembalikan HANYA format JSON valid tanpa teks pengantar apapun.
+                    Strukturnya harus persis seperti ini:
+                    {{
+                        "tipe_unit": "Ekstrak nama model/tipe unit. Jika tidak ada tulis -",
+                        "headline": "Satu kalimat headline jualan yang sangat powerful (maks 6 kata)",
+                        "engine": "Ekstrak spek mesin/engine power. Jika tidak ada tulis -",
+                        "hydraulic": "Ekstrak sistem hidrolik/kapasitas. Jika tidak ada tulis -",
+                        "bobot": "Ekstrak berat/bobot unit. Jika tidak ada tulis -",
+                        "badge1": "Keunggulan garansi/stok. Contoh: GARANSI 1 TAHUN",
+                        "badge2": "Keunggulan layanan. Contoh: SPAREPART TERJAMIN",
+                        "badge3": "Keunggulan lain. Contoh: READY STOCK",
+                        "copywriting": "Buat 4 poin keunggulan alat berat ini. Format per baris wajib: JUDUL | Deskripsi singkat 2 kalimat. Tiap poin dipisah dengan enter/newline."
+                    }}
                     """
                     
+                    # MENGGUNAKAN MESIN STABIL ANDA: gemini-2.5-flash
                     api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
                     headers = {'Content-Type': 'application/json'}
                     payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -171,21 +191,41 @@ with col2:
                     
                     for attempt in range(max_retries):
                         try:
-                            # Timeout diperpanjang jadi 40 detik agar PDF tebal terbaca sempurna
                             response = requests.post(api_url, headers=headers, json=payload, timeout=40)
                             
                             if response.status_code == 200:
                                 data = response.json()
-                                hasil_ai = data['candidates'][0]['content']['parts'][0]['text']
-                                st.session_state['ai_result'] = hasil_ai
-                                st.success("✅ Teks jualan berhasil dibuat!")
+                                hasil_ai_mentah = data['candidates'][0]['content']['parts'][0]['text']
+                                
+                                # Membersihkan dan membaca format JSON dari AI
+                                match = re.search(r'\{.*\}', hasil_ai_mentah, re.DOTALL)
+                                if match:
+                                    json_str = match.group(0)
+                                    extracted_data = json.loads(json_str)
+                                    
+                                    # MENYUNTIKKAN DATA AI LANGSUNG KE KOTAK MERAH
+                                    st.session_state.tipe_unit = extracted_data.get('tipe_unit', st.session_state.tipe_unit).upper()
+                                    st.session_state.headline = extracted_data.get('headline', st.session_state.headline).upper()
+                                    st.session_state.engine = extracted_data.get('engine', st.session_state.engine)
+                                    st.session_state.hydraulic = extracted_data.get('hydraulic', st.session_state.hydraulic)
+                                    st.session_state.bobot = extracted_data.get('bobot', st.session_state.bobot)
+                                    st.session_state.badge1 = extracted_data.get('badge1', st.session_state.badge1).upper()
+                                    st.session_state.badge2 = extracted_data.get('badge2', st.session_state.badge2).upper()
+                                    st.session_state.badge3 = extracted_data.get('badge3', st.session_state.badge3).upper()
+                                    st.session_state.copywriting = extracted_data.get('copywriting', st.session_state.copywriting)
+                                    
+                                    st.success("✅ Berhasil mengekstrak data! Formulir telah diisi otomatis.")
+                                    time.sleep(1) # Jeda sedikit agar pesan sukses terbaca
+                                    st.rerun() # Refresh aplikasi agar teks muncul di kotak input
+                                else:
+                                    st.error("AI gagal memformat data dengan benar. Silakan coba lagi.")
+                                
                                 berhasil = True
                                 break
                             else:
                                 if attempt < max_retries - 1:
-                                    time.sleep(3) # Istirahat 3 detik lalu coba lagi
+                                    time.sleep(3) 
                                 else:
-                                    # Jika gagal 3 kali, tampilkan pesan error ASLI dari Google
                                     try:
                                         err_data = response.json()
                                         error_msg = err_data.get('error', {}).get('message', str(err_data))
@@ -201,8 +241,7 @@ with col2:
                 except Exception as e:
                     st.error(f"Terjadi kesalahan teknis internal: {e}")
 
-    ai_raw_text = st.session_state.get('ai_result', "BELUM ADA DATA.\nSilakan klik tombol di atas atau ketik manual dengan format:\nJUDUL | Deskripsi...")
-    final_copy = st.text_area("Hasil Copywriting (Format: JUDUL | Deskripsi)", ai_raw_text, height=150)
+    final_copy = st.text_area("Hasil Copywriting (Bisa diedit manual)", key="copywriting", height=150)
 
 st.markdown("---")
 
@@ -257,7 +296,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.image(img_path, x=40, y=14, w=130)
             if os.path.exists(img_path): os.remove(img_path)
             
-            # --- HEADLINE & SPECS NAIK MEMBERIKAN RUANG ---
+            # --- HEADLINE & SPECS MENGAMBIL DARI STATE ---
             pdf.set_y(115)
             pdf.set_font('Helvetica', 'B', 18) 
             pdf.set_text_color(20, 20, 20)
@@ -271,7 +310,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             pdf.set_font('Helvetica', 'B', 9)
             pdf.set_text_color(80, 80, 80)
             pdf.cell(63, 6, f"ENGINE: {spec_engine.upper()}", align='C')
-            pdf.cell(63, 6, f"Hydraulic System: {spec_cap.upper()}", align='C')
+            pdf.cell(63, 6, f"HYDRAULIC: {spec_cap.upper()}", align='C')
             pdf.cell(63, 6, f"BOBOT: {spec_weight.upper()}", align='C', ln=True)
             
             # --- TRUST BADGES ---
@@ -283,7 +322,7 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             spacing = 5
             
             def draw_badge(text, is_last=False):
-                if text.strip():
+                if text.strip() and text != "-":
                     pdf.cell(box_w, 8, f"{text.upper()}", align='C', fill=True, ln=is_last)
                 else:
                     pdf.cell(box_w, 8, "", align='C', ln=is_last)
@@ -349,6 +388,6 @@ if st.button("🌟 Generate Ultimate Brochure (PDF & PNG)"):
             
             dl_col1, dl_col2 = st.columns(2)
             with dl_col1:
-                st.download_button("⬇️ Download High-Res PDF", data=pdf_bytes, file_name=f"{brand}_Brosur_{model}.pdf", mime="application/pdf")
+                st.download_button("⬇️ Download High-Res PDF", data=pdf_bytes, file_name=f"{brand}_Brosur.pdf", mime="application/pdf")
             with dl_col2:
-                st.download_button("🖼️ Download Gambar (PNG)", data=png_bytes, file_name=f"{brand}_Brosur_{model}.png", mime="image/png")
+                st.download_button("🖼️ Download Gambar (PNG)", data=png_bytes, file_name=f"{brand}_Brosur.png", mime="image/png")
